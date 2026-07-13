@@ -1,0 +1,49 @@
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.product-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 0;
+}
+
+.product-card {
+  border: 1px solid color-mix(in srgb, canvastext 20%, transparent);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.price {
+  font-weight: bold;
+}
+
+.quantity-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quantity-label input {
+  width: 4rem;
+}
+
+.banner {
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.banner-error {
+  background: color-mix(in srgb, red 15%, transparent);
+}
+
+.banner-success {
+  background: color-mix(in srgb, green 15%, transparent);
+}

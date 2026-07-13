@@ -1,0 +1,40 @@
+{
+  "name": "microshop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Application microservices de démonstration (frontend, catalogue, orders) déployée sur Kubernetes.",
+  "license": "ISC",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "postinstall": "pnpm --filter @microshop/shared run build",
+    "dev": "concurrently -n catalogue,orders,frontend -c blue,green,magenta \"pnpm --filter @microshop/catalogue dev\" \"pnpm --filter @microshop/orders dev\" \"pnpm --filter @microshop/frontend dev\"",
+    "build": "pnpm -r --filter=./packages/* --filter=./services/* --filter=./apps/* run build",
+    "test": "pnpm -r --filter=./packages/* --filter=./services/* --filter=./apps/* run test",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r --filter=./packages/* --filter=./services/* --filter=./apps/* run typecheck",
+    "db:migrate": "pnpm --filter @microshop/db run migrate:up",
+    "db:rollback": "pnpm --filter @microshop/db run migrate:down",
+    "db:seed": "pnpm --filter @microshop/db run seed",
+    "dev:db:up": "bash scripts/dev-db-up.sh",
+    "dev:db:down": "bash scripts/dev-db-down.sh",
+    "dev:db:reset": "bash scripts/dev-db-reset.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.19.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.21.0"
+  }
+}
