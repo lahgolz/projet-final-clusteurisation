@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - name: microshop-db
+    namespace: microshop
+    envs:
+      - secret.env
+
+images:
+  - name: ghcr.io/your-org/microshop-catalogue
+    newName: microshop/catalogue
+    newTag: dev
+  - name: ghcr.io/your-org/microshop-orders
+    newName: microshop/orders
+    newTag: dev
+  - name: ghcr.io/your-org/microshop-frontend
+    newName: microshop/frontend
+    newTag: dev
+  - name: ghcr.io/your-org/microshop-db-tools
+    newName: microshop/db-tools
+    newTag: dev
+
+patches:
+  - path: replicas.yaml
+  - path: hpa.yaml

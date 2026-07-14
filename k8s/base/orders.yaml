@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders
+  namespace: microshop
+spec:
+  selector:
+    app.kubernetes.io/name: orders
+  ports:
+    - name: http
+      port: 4002
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  namespace: microshop
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders
+        app.kubernetes.io/part-of: microshop
+    spec:
+      serviceAccountName: microshop
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: orders
+          image: ghcr.io/your-org/microshop-orders:replace-me
+          ports:
+            - name: http
+              containerPort: 4002
+          envFrom:
+            - configMapRef:
+                name: microshop-config
+          env:
+            - name: PORT
+              value: "4002"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: microshop-db
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
