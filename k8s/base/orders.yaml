@@ -37,6 +37,15 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: orders
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: orders
           image: ghcr.io/your-org/microshop-orders:replace-me

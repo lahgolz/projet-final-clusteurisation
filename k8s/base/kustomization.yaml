@@ -12,4 +12,5 @@ resources:
   - orders.yaml
   - ingress.yaml
   - hpa.yaml
+  - pdb.yaml
   - networkpolicy.yaml
