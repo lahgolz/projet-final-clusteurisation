@@ -12,3 +12,4 @@ coverage/
 .idea/
 *.tsbuildinfo
 .pnpm-store/
+k8s/overlays/*/secret.env

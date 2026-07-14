@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - name: microshop-db
+    namespace: microshop
+    envs:
+      - secret.env
+
+patches:
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: microshop
+      namespace: microshop
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: microshop.example.com
