@@ -1,34 +1,38 @@
 # MicroShop
 
 Application microservices de démonstration (frontend + 2 API + PostgreSQL) déployée sur
-Kubernetes. Voir [`docs/architecture.md`](./docs/architecture.md) pour la vue d'ensemble et
-[`docs/data-model.md`](./docs/data-model.md) pour le modèle de données.
+Kubernetes. Voir [`docs/architecture.md`](./docs/architecture.md) pour la vue d'ensemble,
+[`docs/data-model.md`](./docs/data-model.md) pour le modèle de données, et
+[`docs/containerisation.md`](./docs/containerisation.md) pour les images Docker et
+l'environnement local.
 
 ## Structure du dépôt
 
 ```text
 .
 ├── apps/
-│   └── frontend/       # React + Vite + TypeScript
+│   └── frontend/       # React + Vite + TypeScript, Dockerfile, nginx.conf
 ├── services/
-│   ├── catalogue/      # API produits (Fastify + TypeScript)
-│   └── orders/         # API commandes (Fastify + TypeScript)
+│   ├── catalogue/      # API produits (Fastify + TypeScript), Dockerfile
+│   └── orders/         # API commandes (Fastify + TypeScript), Dockerfile
 ├── packages/
 │   ├── shared/         # logger JSON, helper HTTP avec timeout, partagés par les services
-│   └── db/             # migrations, seed et schéma PostgreSQL
+│   └── db/             # migrations, seed, schéma PostgreSQL, Dockerfile (image outils)
 ├── k8s/
-│   ├── base/           # manifests Kubernetes de base (à partir de l'étape 7)
-│   └── overlays/       # variantes Kustomize (dev/prod, à partir de l'étape 7)
-├── docs/                # documentation d'architecture et de modèle de données
-├── scripts/             # scripts de développement (base de données locale, etc.)
-└── .github/workflows/   # pipeline CI/CD (à partir de l'étape 11)
+│   ├── base/           # manifests Kubernetes de base
+│   └── overlays/       # variantes Kustomize (dev/prod)
+├── docs/                # documentation d'architecture, modèle de données, conteneurisation
+├── scripts/             # scripts de développement (base de données locale, smoke test)
+├── docker-compose.yml   # environnement local complet (postgres, migrate, seed, apps, gateway)
+├── gateway.nginx.conf   # reverse proxy local (rôle d'Ingress, cf. docker-compose.yml)
+└── .github/workflows/   # pipeline CI/CD
 ```
 
 ## Prérequis
 
 - Node.js ≥ 20
 - pnpm ≥ 10 (`corepack enable` recommandé)
-- Docker (pour PostgreSQL en local et pour la conteneurisation)
+- Docker + Docker Compose (pour PostgreSQL en local et pour la conteneurisation)
 
 ## Installation
 
@@ -55,6 +59,24 @@ Le frontend appelle les API via des chemins relatifs (`/api/catalogue`, `/api/or
 développement, Vite proxy ces chemins vers les services locaux (voir
 `apps/frontend/vite.config.ts`).
 
+## Environnement conteneurisé (Docker Compose)
+
+```bash
+docker compose up -d --build   # postgres, migrate, seed, catalogue, orders, frontend, gateway
+curl http://localhost:8080/api/catalogue/products
+docker compose down -v         # arrêt propre + suppression du volume de développement
+```
+
+Smoke test de bout en bout (build, démarrage, migrations, requêtes, persistance après
+redémarrage, vérification non-root, arrêt) :
+
+```bash
+bash scripts/smoke-test.sh
+```
+
+Détails, Dockerfiles, choix de versions et résultats du scan Trivy :
+[`docs/containerisation.md`](./docs/containerisation.md).
+
 ## Scripts racine
 
 | Script             | Effet                                                         |
@@ -68,15 +90,4 @@ développement, Vite proxy ces chemins vers les services locaux (voir
 | `pnpm db:migrate`  | Applique les migrations PostgreSQL                            |
 | `pnpm db:rollback` | Annule la dernière migration                                  |
 | `pnpm db:seed`     | Insère/actualise le jeu de données de démonstration           |
-
-## Conventions
-
-- TypeScript strict partout.
-- Logs JSON structurés sur stdout (voir `packages/shared/src/logger.ts`).
-- Aucune image ne doit être taguée `latest` dans les manifests Kubernetes : tag = SHA Git court.
-- Aucun secret réel n'est commité : `.env.example` documente les variables attendues, les valeurs
-  réelles restent locales ou dans des Secrets Kubernetes (voir étape 8).
-
-## Étapes du projet
-
-Le détail du plan d'exécution par étape se trouve dans [`agents/`](./agents/00_README.md).
+ 

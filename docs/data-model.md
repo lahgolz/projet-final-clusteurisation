@@ -108,13 +108,13 @@ ultérieur dans `catalogue` ne doit pas modifier le montant d'une commande déj�
     des UUID fixes avec `ON CONFLICT ... DO UPDATE`)
 - **Exécution en cluster** : les migrations ne doivent jamais être lancées par chaque replica au
   démarrage (risque de migrations concurrentes). Elles sont exécutées par un `Job` Kubernetes
-  dédié (`db-migrate`), lancé avant le rollout des Deployments applicatifs (voir étape 7). En
+  dédié (`db-migrate`), lancé avant le rollout des Deployments applicatifs. En
   local, elles sont lancées manuellement via `pnpm db:migrate`.
 - **Comportement en cas d'échec** : `node-pg-migrate` exécute chaque migration dans une
   transaction ; en cas d'erreur, la transaction est annulée et la table `pgmigrations` ne
   référence pas la migration en échec, donc `pnpm db:migrate` peut être relancé sans laisser la
   base dans un état intermédiaire. Le Job Kubernetes doit être configuré pour ne pas boucler
-  indéfiniment (`backoffLimit` borné, voir étape 7) et son échec doit bloquer le déploiement
+  indéfiniment (`backoffLimit` borné) et son échec doit bloquer le déploiement
   applicatif suivant.
 - **Compatibilité ascendante (RollingUpdate)** : pendant un déploiement progressif, d'anciens et
   de nouveaux pods coexistent brièvement sur le même schéma. Règle appliquée : toute migration

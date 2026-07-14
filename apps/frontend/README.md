@@ -37,9 +37,7 @@ pnpm --filter @microshop/frontend build     # génère apps/frontend/dist
 pnpm --filter @microshop/frontend preview   # sert le build localement
 ```
 
-`nginx.conf` contient la configuration destinée à l'image de production (SPA + route
-`/healthz` retournant `200`) ; le Dockerfile qui l'utilise est ajouté à l'étape 6
-(conteneurisation).
+`nginx.conf` contient la configuration destinée à l'image de production (SPA + route `/healthz` retournant `200`)
 
 ## Tests
 

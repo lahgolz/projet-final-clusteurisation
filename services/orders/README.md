@@ -28,8 +28,7 @@ Prérequis : une base PostgreSQL migrée (voir [`packages/db`](../../packages/db
 
 `orders` ne lit jamais directement la table `products` : à la création d'une commande, il
 appelle `GET /api/catalogue/products/:id` pour chaque produit référencé (dédupliqué), avec un
-timeout borné (`CATALOGUE_TIMEOUT_MS`) et **sans retry** (une seule tentative — la politique de
-retry/circuit breaker est traitée à l'étape 10, résilience). Ce choix privilégie la démonstration
+timeout borné (`CATALOGUE_TIMEOUT_MS`) et **sans retry** (une seule tentative). Ce choix privilégie la démonstration
 explicite de la communication inter-services par rapport à un accès direct à une table partagée.
 
 Comportement selon la réponse de catalogue :

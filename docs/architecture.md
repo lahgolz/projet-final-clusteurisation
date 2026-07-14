@@ -50,13 +50,13 @@ flowchart TD
 - **frontend** : consomme les APIs via des chemins relatifs (`/api/catalogue/...`,
   `/api/orders/...`), ne contient aucune URL interne au cluster, ne gère pas d'authentification.
 - **catalogue** : source de vérité du produit (nom, prix, stock). Expose uniquement de la
-  lecture dans le périmètre de cette étape.
+  lecture.
 - **orders** : source de vérité de la commande. Valide les entrées, interroge `catalogue` pour
   chaque produit référencé, capture le prix au moment de la commande, calcule le total côté
   serveur et persiste la commande de façon transactionnelle.
 - **PostgreSQL** : instance unique partagée par les deux services applicatifs, schéma unique
   décrit dans [`docs/data-model.md`](./data-model.md). Les migrations sont appliquées par un job
-  dédié, jamais par les replicas applicatifs (cf. étape 2).
+  dédié, jamais par les replicas applicatifs.
 
 ## Flux réseau
 
@@ -118,7 +118,7 @@ présent sur la machine.
   facilite le contrôle explicite des transactions (commande + lignes de commande) et des timeouts.
 - **`node-pg-migrate`** pour les migrations (paquet dédié `packages/db`, partagé par les deux
   services mais non exécuté par eux) : migrations versionnées en JS, exécution via un Job
-  Kubernetes séparé des Deployments applicatifs (voir étape 2).
+  Kubernetes séparé des Deployments applicatifs.
 - **`packages/shared`** : regroupe uniquement le logger JSON commun et un helper `fetch` avec
   timeout, consommés par `catalogue` et `orders`. Le frontend ne dépend pas de ce paquet : ses
   types d'API sont redéfinis localement (quelques lignes dupliquées) pour éviter de faire
@@ -127,8 +127,7 @@ présent sur la machine.
   d'outils différents dans le monorepo.
 - **Manifests Kubernetes bruts + Kustomize** (`k8s/base` + `k8s/overlays`) plutôt que Helm : le
   périmètre (3 services + Postgres) ne justifie pas un chart paramétrable, Kustomize suffit à
-  distinguer les overlays (dev/prod) tout en gardant des manifests lisibles. Décision appliquée à
-  partir de l'étape 7.
+  distinguer les overlays (dev/prod) tout en gardant des manifests lisibles.
 - **Versionnement des images** : tag = SHA court du commit Git (`git rev-parse --short HEAD`)
   pour tout déploiement ; un tag sémantique additionnel (`vX.Y.Z`) est ajouté uniquement lors
   d'une release explicite. `latest` n'est jamais utilisé dans un manifest.
@@ -137,10 +136,8 @@ présent sur la machine.
 
 - Aucune authentification ni autorisation (hors périmètre du projet).
 - `orders` ne gère pas l'annulation ni la mise à jour de stock du produit après commande (pas de
-  décrément de `stock`) : ce comportement sera explicitement documenté comme non implémenté tant
-  qu'il n'est pas demandé par une étape ultérieure.
+  décrément de `stock`).
 - Pas de pagination sur `GET /api/catalogue/products` au-delà d'une limite fixe raisonnable
-  (voir étape 3) : suffisant pour un jeu de données de démonstration.
+  : suffisant pour un jeu de données de démonstration.
 - Le couplage `orders → catalogue` est synchrone (HTTP avec timeout), pas de file de messages :
-  choix assumé pour rester simple et démontrable ; la résilience (retries bornés, circuit
-  breaker éventuel) est traitée à l'étape 10.
+  choix assumé pour rester simple et démontrable.

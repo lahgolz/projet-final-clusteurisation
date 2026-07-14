@@ -1,0 +1,122 @@
+name: microshop
+
+networks:
+  microshop-internal:
+    driver: bridge
+
+volumes:
+  postgres-data:
+
+x-db-env: &db-env
+  DATABASE_URL: postgresql://${POSTGRES_USER:-microshop}:${POSTGRES_PASSWORD:-microshop}@postgres:5432/${POSTGRES_DB:-microshop}
+
+services:
+  postgres:
+    image: postgres:16.6-alpine3.21
+    networks: [microshop-internal]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-microshop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-microshop}
+      POSTGRES_DB: ${POSTGRES_DB:-microshop}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-microshop} -d ${POSTGRES_DB:-microshop}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile
+    networks: [microshop-internal]
+    environment: *db-env
+    command: ['migrate:up']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  seed:
+    build:
+      context: .
+      dockerfile: packages/db/Dockerfile
+    networks: [microshop-internal]
+    environment: *db-env
+    command: ['seed']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: 'no'
+
+  catalogue:
+    build:
+      context: .
+      dockerfile: services/catalogue/Dockerfile
+    networks: [microshop-internal]
+    environment:
+      <<: *db-env
+      PORT: '4001'
+      LOG_LEVEL: info
+      DB_POOL_MIN: '2'
+      DB_POOL_MAX: '10'
+      REQUEST_TIMEOUT_MS: '5000'
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4001/health/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  orders:
+    build:
+      context: .
+      dockerfile: services/orders/Dockerfile
+    networks: [microshop-internal]
+    environment:
+      <<: *db-env
+      PORT: '4002'
+      CATALOGUE_BASE_URL: http://catalogue:4001
+      LOG_LEVEL: info
+      REQUEST_TIMEOUT_MS: '5000'
+      CATALOGUE_TIMEOUT_MS: '2000'
+    depends_on:
+      catalogue:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4002/health/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    networks: [microshop-internal]
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/healthz']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  gateway:
+    image: nginx:1.27.5-alpine3.21
+    networks: [microshop-internal]
+    volumes:
+      - ./gateway.nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - '${GATEWAY_PORT:-8080}:8080'
+    depends_on:
+      frontend:
+        condition: service_healthy
+      catalogue:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
