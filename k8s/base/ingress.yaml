@@ -1,14 +1,14 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: microshop
-  namespace: microshop
+  name: microservice-app
+  namespace: microservice-app
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "10"
 spec:
   ingressClassName: nginx
   rules:
-    - host: microshop.local
+    - host: microservice-app.local
       http:
         paths:
           - path: /api/catalogue

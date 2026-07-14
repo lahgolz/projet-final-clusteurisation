@@ -17,10 +17,10 @@ FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY services/orders services/orders
-RUN pnpm --filter @microshop/shared run build
-RUN pnpm --filter @microshop/orders run build
+RUN pnpm --filter @microservice-app/shared run build
+RUN pnpm --filter @microservice-app/orders run build
 
-RUN pnpm --filter @microshop/orders deploy --prod --legacy /prod/orders
+RUN pnpm --filter @microservice-app/orders deploy --prod --legacy /prod/orders
 
 FROM node:22.23.1-alpine3.24 AS runtime
 ENV NODE_ENV=production

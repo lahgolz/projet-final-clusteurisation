@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Pool } from 'pg';
-import { createLogger } from '@microshop/shared';
+import { createLogger } from '@microservice-app/shared';
 import { buildApp } from '../../src/app.js';
 
 const UNREACHABLE_DATABASE_URL = 'postgresql://invalid:invalid@127.0.0.1:1/invalid';

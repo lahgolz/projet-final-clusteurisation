@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: microshop
+  namespace: microservice-app
 spec:
   replicas: 1
 ---
@@ -10,7 +10,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: catalogue
-  namespace: microshop
+  namespace: microservice-app
 spec:
   replicas: 1
 ---
@@ -18,6 +18,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: orders
-  namespace: microshop
+  namespace: microservice-app
 spec:
   replicas: 1

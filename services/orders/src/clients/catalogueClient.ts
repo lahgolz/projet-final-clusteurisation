@@ -1,4 +1,4 @@
-import { fetchWithTimeout, TimeoutError, type Product } from '@microshop/shared';
+import { fetchWithTimeout, TimeoutError, type Product } from '@microservice-app/shared';
 
 export class ProductNotFoundError extends Error {
   productId: string;

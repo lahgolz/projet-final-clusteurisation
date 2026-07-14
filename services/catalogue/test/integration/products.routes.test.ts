@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
-import { createLogger } from '@microshop/shared';
+import { createLogger } from '@microservice-app/shared';
 import { buildApp } from '../../src/app.js';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;

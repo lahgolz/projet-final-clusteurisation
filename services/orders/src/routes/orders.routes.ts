@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
-import type { Logger, Product } from '@microshop/shared';
+import type { Logger, Product } from '@microservice-app/shared';
 import { createOrderSchema, orderIdParamSchema } from '../schemas/orders.schema.js';
 import { createOrder, getOrderById } from '../repositories/orders.repository.js';
 import { sendError } from '../errors.js';

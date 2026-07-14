@@ -1,4 +1,4 @@
-# Résilience et scalabilité — MicroShop
+# Résilience et scalabilité — microservice-app
 
 ## Périmètre
 
@@ -14,7 +14,7 @@ Environnement de démonstration : cluster **Kind** mono-nœud, overlay `dev`.
 
 ```
                     ┌─────────────────────────────────────────┐
-                    │  Namespace microshop                    │
+                    │  Namespace microservice-app                    │
                     │                                         │
   ┌──────────┐     │  ┌──────────┐  ┌──────────┐           │
   │ Ingress  │────▶│  │catalogue │  │catalogue │  ← HPA    │
@@ -67,7 +67,7 @@ Exemple : 2 pods à 130 % CPU cible → `ceil(2 × 1.30) = ceil(2.6) = 3 pods`.
 ```bash
 # Vérifier que metrics-server répond
 kubectl -n kube-system get deployment metrics-server
-kubectl top pods -n microshop
+kubectl top pods -n microservice-app
 ```
 
 ### Comportements observés
@@ -82,13 +82,13 @@ kubectl top pods -n microshop
 
 ```bash
 # Terminal 1 — observer le HPA en temps réel
-kubectl -n microshop get hpa -w
+kubectl -n microservice-app get hpa -w
 
 # Terminal 2 — générer la charge (20 workers pendant 2 min)
-bash scripts/load-test.sh http://microshop.local 120 20
+bash scripts/load-test.sh http://microservice-app.local 120 20
 
 # Terminal 3 — observer les pods
-kubectl -n microshop get pods -l app.kubernetes.io/name=catalogue -w
+kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue -w
 ```
 
 Résultat attendu : le nombre de replicas passe de 2 à 3-5 selon la charge, puis redescend à 2
@@ -120,7 +120,7 @@ Il **ne protège pas** contre les disruptions involontaires (crash OOMKill, pann
 ```bash
 # Avec 2 replicas de catalogue et PDB minAvailable:1
 # Tenter d'éviter un pod — doit respecter le PDB
-kubectl -n microshop get pdb catalogue
+kubectl -n microservice-app get pdb catalogue
 
 # Dry-run d'un drain (cluster multi-nœuds uniquement)
 kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data --dry-run=client
@@ -177,13 +177,13 @@ Avec `replicas: 2` :
 
 ```bash
 # Déclencher un rolling restart (simulate un redéploiement)
-kubectl -n microshop rollout restart deployment/catalogue
+kubectl -n microservice-app rollout restart deployment/catalogue
 
 # Suivre la progression
-kubectl -n microshop rollout status deployment/catalogue
+kubectl -n microservice-app rollout status deployment/catalogue
 
 # Vérifier la disponibilité en continu
-watch -n1 curl -s -o /dev/null -w '%{http_code}' http://microshop.local/api/catalogue/products
+watch -n1 curl -s -o /dev/null -w '%{http_code}' http://microservice-app.local/api/catalogue/products
 ```
 
 ---
@@ -192,16 +192,16 @@ watch -n1 curl -s -o /dev/null -w '%{http_code}' http://microshop.local/api/cata
 
 ```bash
 # Voir l'historique
-kubectl -n microshop rollout history deployment/catalogue
+kubectl -n microservice-app rollout history deployment/catalogue
 
 # Revenir à la révision précédente
-kubectl -n microshop rollout undo deployment/catalogue
+kubectl -n microservice-app rollout undo deployment/catalogue
 
 # Revenir à une révision précise
-kubectl -n microshop rollout undo deployment/catalogue --to-revision=2
+kubectl -n microservice-app rollout undo deployment/catalogue --to-revision=2
 
 # Vérifier le statut
-kubectl -n microshop rollout status deployment/catalogue
+kubectl -n microservice-app rollout status deployment/catalogue
 ```
 
 ---
@@ -214,15 +214,15 @@ kubectl -n microshop rollout status deployment/catalogue
 
 ```bash
 # État avant
-kubectl -n microshop get pods -l app.kubernetes.io/name=catalogue
+kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue
 
 # Supprimer un pod
-POD=$(kubectl -n microshop get pods -l app.kubernetes.io/name=catalogue \
+POD=$(kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue \
   -o jsonpath='{.items[0].metadata.name}')
-kubectl -n microshop delete pod "$POD"
+kubectl -n microservice-app delete pod "$POD"
 
 # Observer la recréation
-kubectl -n microshop get pods -l app.kubernetes.io/name=catalogue -w
+kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue -w
 ```
 
 **Résultats attendus :**
@@ -245,10 +245,10 @@ durée de la recréation.
 
 ```bash
 # Terminal 1
-kubectl -n microshop get hpa catalogue -w
+kubectl -n microservice-app get hpa catalogue -w
 
 # Terminal 2
-bash scripts/load-test.sh http://microshop.local 120 20
+bash scripts/load-test.sh http://microservice-app.local 120 20
 ```
 
 **Résultats attendus :**
@@ -268,14 +268,14 @@ bash scripts/load-test.sh http://microshop.local 120 20
 ```bash
 # Lancer en parallèle une sonde de disponibilité
 while true; do
-  CODE=$(curl -s -o /dev/null -w '%{http_code}' http://microshop.local/api/catalogue/products)
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' http://microservice-app.local/api/catalogue/products)
   echo "$(date +%T) HTTP $CODE"
   sleep 1
 done &
 
 # Déclencher le rolling restart
-kubectl -n microshop rollout restart deployment/catalogue
-kubectl -n microshop rollout status deployment/catalogue
+kubectl -n microservice-app rollout restart deployment/catalogue
+kubectl -n microservice-app rollout status deployment/catalogue
 ```
 
 **Résultat attendu** : tous les codes HTTP restent à `200` pendant toute la durée du rollout
@@ -334,7 +334,7 @@ Le script [`scripts/resilience-demo.sh`](../scripts/resilience-demo.sh) enchaîn
 3 à 7 de manière interactive, avec des pauses entre chaque étape.
 
 ```bash
-bash scripts/resilience-demo.sh http://microshop.local
+bash scripts/resilience-demo.sh http://microservice-app.local
 ```
 
 Étapes couvertes :
@@ -351,23 +351,23 @@ bash scripts/resilience-demo.sh http://microshop.local
 
 ```bash
 # État global de la résilience
-kubectl -n microshop get deploy,hpa,pdb
+kubectl -n microservice-app get deploy,hpa,pdb
 
 # Surveiller le HPA en temps réel
-kubectl -n microshop get hpa -w
+kubectl -n microservice-app get hpa -w
 
 # Métriques CPU des pods (nécessite metrics-server)
-kubectl -n microshop top pods
+kubectl -n microservice-app top pods
 
 # Décrire le HPA pour voir les événements de scaling
-kubectl -n microshop describe hpa catalogue
+kubectl -n microservice-app describe hpa catalogue
 
 # Voir les événements du namespace (crashs, OOMKill, etc.)
-kubectl -n microshop get events --sort-by='.lastTimestamp'
+kubectl -n microservice-app get events --sort-by='.lastTimestamp'
 
 # Tester la disponibilité en continu
 while true; do
-  curl -s -o /dev/null -w "$(date +%T) %{http_code}\n" http://microshop.local/api/catalogue/products
+  curl -s -o /dev/null -w "$(date +%T) %{http_code}\n" http://microservice-app.local/api/catalogue/products
   sleep 1
 done
 ```

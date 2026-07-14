@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import type { Product } from '@microshop/shared';
+import type { Product } from '@microservice-app/shared';
 
 interface ProductRow {
   id: string;

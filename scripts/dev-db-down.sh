@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CONTAINER_NAME="microshop-postgres-dev"
+CONTAINER_NAME="microservice-app-postgres-dev"
 
 if docker ps -a --format '{{.Names}}' | grep -qx "${CONTAINER_NAME}"; then
   docker rm -f "${CONTAINER_NAME}" >/dev/null

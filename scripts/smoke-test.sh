@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 GATEWAY_URL="http://localhost:${GATEWAY_PORT:-8080}"
-COMPOSE_PROJECT="microshop-smoke"
+COMPOSE_PROJECT="microservice-app-smoke"
 COMPOSE="docker compose -p ${COMPOSE_PROJECT}"
 
 cleanup() {

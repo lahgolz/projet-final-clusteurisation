@@ -3,17 +3,17 @@
 # Nécessite : curl, bc
 #
 # Usage: bash scripts/load-test.sh [BASE_URL] [DURÉE_SECONDES] [CONCURRENCE]
-#   BASE_URL     URL de base du cluster (défaut: http://microshop.local)
+#   BASE_URL     URL de base du cluster (défaut: http://microservice-app.local)
 #   DURÉE        durée de la charge en secondes (défaut: 120)
 #   CONCURRENCE  nombre de workers parallèles (défaut: 20)
 #
 # Exemple soutenance :
-#   Terminal 1 : kubectl -n microshop get hpa -w
+#   Terminal 1 : kubectl -n microservice-app get hpa -w
 #   Terminal 2 : bash scripts/load-test.sh
 
 set -euo pipefail
 
-BASE_URL="${1:-http://microshop.local}"
+BASE_URL="${1:-http://microservice-app.local}"
 DURATION="${2:-120}"
 CONCURRENCY="${3:-20}"
 TARGET="${BASE_URL}/api/catalogue/products"
@@ -39,7 +39,7 @@ worker() {
 echo "==> Load test sur ${TARGET}"
 echo "    Concurrence : ${CONCURRENCY} workers | Durée : ${DURATION}s"
 echo "    Surveiller le HPA dans un autre terminal :"
-echo "      kubectl -n microshop get hpa -w"
+echo "      kubectl -n microservice-app get hpa -w"
 echo ""
 
 # Lancer les workers en arrière-plan

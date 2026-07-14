@@ -1,4 +1,4 @@
-# MicroShop
+# microservice-app
 
 Application microservices de démonstration (frontend + 2 API + PostgreSQL) déployée sur
 Kubernetes. Voir [`docs/architecture.md`](./docs/architecture.md) pour la vue d'ensemble,

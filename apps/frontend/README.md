@@ -6,7 +6,7 @@ commande.
 ## Démarrage local
 
 ```bash
-pnpm --filter @microshop/frontend dev
+pnpm --filter @microservice-app/frontend dev
 ```
 
 Ouvre `http://localhost:5173`. En développement, Vite proxy `/api/catalogue` vers
@@ -33,8 +33,8 @@ ces appels si les API sont un jour exposées sur une origine différente ; laiss
 ## Build et serveur statique
 
 ```bash
-pnpm --filter @microshop/frontend build     # génère apps/frontend/dist
-pnpm --filter @microshop/frontend preview   # sert le build localement
+pnpm --filter @microservice-app/frontend build     # génère apps/frontend/dist
+pnpm --filter @microservice-app/frontend preview   # sert le build localement
 ```
 
 `nginx.conf` contient la configuration destinée à l'image de production (SPA + route `/healthz` retournant `200`)
@@ -42,7 +42,7 @@ pnpm --filter @microshop/frontend preview   # sert le build localement
 ## Tests
 
 ```bash
-pnpm --filter @microshop/frontend test
+pnpm --filter @microservice-app/frontend test
 ```
 
 Couvre : rendu de la liste de produits, état vide, erreur de chargement du catalogue, création
@@ -52,6 +52,6 @@ de commande réussie, erreur lors de la création d'une commande, et le client H
 ## Lint et typecheck
 
 ```bash
-pnpm --filter @microshop/frontend lint
-pnpm --filter @microshop/frontend typecheck
+pnpm --filter @microservice-app/frontend lint
+pnpm --filter @microservice-app/frontend typecheck
 ```

@@ -2,7 +2,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: catalogue
-  namespace: microshop
+  namespace: microservice-app
 spec:
   minReplicas: 1
   maxReplicas: 3

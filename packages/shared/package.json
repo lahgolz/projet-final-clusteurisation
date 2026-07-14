@@ -1,5 +1,5 @@
 {
-  "name": "@microshop/shared",
+  "name": "@microservice-app/shared",
   "version": "1.0.0",
   "private": true,
   "type": "module",

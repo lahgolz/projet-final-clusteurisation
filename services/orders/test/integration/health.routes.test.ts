@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Pool } from 'pg';
-import { createLogger } from '@microshop/shared';
+import { createLogger } from '@microservice-app/shared';
 import { buildApp } from '../../src/app.js';
 import type { CatalogueClient } from '../../src/clients/catalogueClient.js';
 

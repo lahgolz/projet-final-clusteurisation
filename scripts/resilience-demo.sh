@@ -5,16 +5,16 @@
 # Prérequis :
 #   - cluster Kind actif avec l'overlay dev déployé
 #   - metrics-server installé et fonctionnel
-#   - microshop.local résolu vers 127.0.0.1
+#   - microservice-app.local résolu vers 127.0.0.1
 #   - catalogue déployé avec au moins 2 replicas
-#     (si overlay dev : kubectl -n microshop scale deploy/catalogue --replicas=2)
+#     (si overlay dev : kubectl -n microservice-app scale deploy/catalogue --replicas=2)
 #
 # Usage : bash scripts/resilience-demo.sh [BASE_URL]
 
 set -euo pipefail
 
-NS="microshop"
-BASE_URL="${1:-http://microshop.local}"
+NS="microservice-app"
+BASE_URL="${1:-http://microservice-app.local}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ─────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ kubectl -n "$NS" get pdb
 step "Vérification que l'application répond :"
 HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/api/catalogue/products")
 [ "$HTTP_CODE" = "200" ] && ok "GET /api/catalogue/products → HTTP $HTTP_CODE" \
-  || echo "  ✗ HTTP $HTTP_CODE — vérifier que le cluster est démarré et que microshop.local est dans /etc/hosts"
+  || echo "  ✗ HTTP $HTTP_CODE — vérifier que le cluster est démarré et que microservice-app.local est dans /etc/hosts"
 
 pause
 

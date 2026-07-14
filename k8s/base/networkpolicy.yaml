@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-ingress
-  namespace: microshop
+  namespace: microservice-app
 spec:
   podSelector: {}
   policyTypes: [Ingress]
@@ -11,7 +11,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-ingress-to-web
-  namespace: microshop
+  namespace: microservice-app
 spec:
   podSelector:
     matchLabels:
@@ -30,7 +30,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-ingress-to-apis
-  namespace: microshop
+  namespace: microservice-app
 spec:
   podSelector:
     matchExpressions:
@@ -60,7 +60,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-apps-to-postgres
-  namespace: microshop
+  namespace: microservice-app
 spec:
   podSelector:
     matchLabels:

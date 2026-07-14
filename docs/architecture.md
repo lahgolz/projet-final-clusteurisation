@@ -1,9 +1,9 @@
-# Architecture — MicroShop
+# Architecture — microservice-app
 
 ## Vue d'ensemble
 
-MicroShop est une application de démonstration composée de quatre briques déployées dans le
-namespace Kubernetes `microshop` :
+microservice-app est une application de démonstration composée de quatre briques déployées dans le
+namespace Kubernetes `microservice-app` :
 
 | Composant   | Responsabilité                                           | Techno                                     |
 | ----------- | -------------------------------------------------------- | ------------------------------------------ |
@@ -24,7 +24,7 @@ valider un produit et récupérer son prix.
 flowchart TD
     Browser["Navigateur"]
 
-    subgraph Cluster["Cluster Kubernetes — namespace microshop"]
+    subgraph Cluster["Cluster Kubernetes — namespace microservice-app"]
         Ingress["Ingress NGINX"]
         FE["frontend (Deployment)\nport 8080"]
         CAT["catalogue (Deployment)\nport 4001"]

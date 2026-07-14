@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-migrate
-  namespace: microshop
+  namespace: microservice-app
   annotations:
     # GitOps tools can use this ordering hint; kubectl users run this job before the apps.
     argocd.argoproj.io/sync-wave: "1"
@@ -13,23 +13,24 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: db-migrate
-        app.kubernetes.io/part-of: microshop
+        app.kubernetes.io/part-of: microservice-app
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: microshop
+      serviceAccountName: microservice-app
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: ghcr.io/your-org/microshop-db-tools:replace-me
+          image: ghcr.io/your-org/microservice-app-db-tools:replace-me
           args: ["migrate:up"]
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: microshop-db
+                  name: microservice-app-db
                   key: DATABASE_URL
           resources:
             requests:
@@ -47,7 +48,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-seed
-  namespace: microshop
+  namespace: microservice-app
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
@@ -57,23 +58,24 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: db-seed
-        app.kubernetes.io/part-of: microshop
+        app.kubernetes.io/part-of: microservice-app
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: microshop
+      serviceAccountName: microservice-app
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: seed
-          image: ghcr.io/your-org/microshop-db-tools:replace-me
+          image: ghcr.io/your-org/microservice-app-db-tools:replace-me
           args: ["seed"]
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: microshop-db
+                  name: microservice-app-db
                   key: DATABASE_URL
           resources:
             requests:

@@ -8,23 +8,23 @@ generatorOptions:
   disableNameSuffixHash: true
 
 secretGenerator:
-  - name: microshop-db
-    namespace: microshop
+  - name: microservice-app-db
+    namespace: microservice-app
     envs:
       - secret.env
 
 images:
-  - name: ghcr.io/your-org/microshop-catalogue
-    newName: microshop/catalogue
+  - name: ghcr.io/your-org/microservice-app-catalogue
+    newName: microservice-app/catalogue
     newTag: dev
-  - name: ghcr.io/your-org/microshop-orders
-    newName: microshop/orders
+  - name: ghcr.io/your-org/microservice-app-orders
+    newName: microservice-app/orders
     newTag: dev
-  - name: ghcr.io/your-org/microshop-frontend
-    newName: microshop/frontend
+  - name: ghcr.io/your-org/microservice-app-frontend
+    newName: microservice-app/frontend
     newTag: dev
-  - name: ghcr.io/your-org/microshop-db-tools
-    newName: microshop/db-tools
+  - name: ghcr.io/your-org/microservice-app-db-tools
+    newName: microservice-app/db-tools
     newTag: dev
 
 patches:

@@ -7,20 +7,20 @@ smoke test et scan de vulnérabilités.
 
 | Image                 | Dockerfile                      | Base d'exécution                                         | Port |
 | --------------------- | ------------------------------- | -------------------------------------------------------- | ---- |
-| `microshop/catalogue` | `services/catalogue/Dockerfile` | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | 4001 |
-| `microshop/orders`    | `services/orders/Dockerfile`    | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | 4002 |
-| `microshop/frontend`  | `apps/frontend/Dockerfile`      | `nginxinc/nginx-unprivileged:1.29.8-alpine3.23`, uid 101 | 8080 |
-| `microshop/db-tools`  | `packages/db/Dockerfile`        | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | —    |
+| `microservice-app/catalogue` | `services/catalogue/Dockerfile` | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | 4001 |
+| `microservice-app/orders`    | `services/orders/Dockerfile`    | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | 4002 |
+| `microservice-app/frontend`  | `apps/frontend/Dockerfile`      | `nginxinc/nginx-unprivileged:1.29.8-alpine3.23`, uid 101 | 8080 |
+| `microservice-app/db-tools`  | `packages/db/Dockerfile`        | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | —    |
 
 Toutes les images sont construites **depuis la racine du monorepo** (`context: .`), pas depuis
 le dossier du service : `catalogue` et `orders` dépendent du paquet workspace
-`@microshop/shared`, et les trois applications partagent un unique `pnpm-lock.yaml`.
+`@microservice-app/shared`, et les trois applications partagent un unique `pnpm-lock.yaml`.
 
 ```bash
-docker build -f services/catalogue/Dockerfile -t microshop/catalogue:<tag> .
-docker build -f services/orders/Dockerfile    -t microshop/orders:<tag>    .
-docker build -f apps/frontend/Dockerfile      -t microshop/frontend:<tag>  .
-docker build -f packages/db/Dockerfile        -t microshop/db-tools:<tag>  .
+docker build -f services/catalogue/Dockerfile -t microservice-app/catalogue:<tag> .
+docker build -f services/orders/Dockerfile    -t microservice-app/orders:<tag>    .
+docker build -f apps/frontend/Dockerfile      -t microservice-app/frontend:<tag>  .
+docker build -f packages/db/Dockerfile        -t microservice-app/db-tools:<tag>  .
 ```
 
 `<tag>` = SHA Git court du commit (`git rev-parse --short HEAD`), jamais `latest`, conformément
@@ -34,8 +34,8 @@ Chaque Dockerfile applicatif suit le même schéma :
    corepack/pnpm.
 2. `deps` : copie uniquement les `package.json` du workspace puis `pnpm install
 --frozen-lockfile --ignore-scripts` (le `--ignore-scripts` évite d'exécuter le `postinstall`
-   racine — qui build `@microshop/shared` — avant que son code source ne soit copié).
-3. `build` : copie le code source, build `@microshop/shared` puis le service, puis
+   racine — qui build `@microservice-app/shared` — avant que son code source ne soit copié).
+3. `build` : copie le code source, build `@microservice-app/shared` puis le service, puis
    `pnpm --filter <service> deploy --prod --legacy /prod/<service>` : cette commande résout les
    dépendances `workspace:*` en fichiers réels et ne conserve que les dépendances de production,
    produisant un dossier autonome. `--legacy` est nécessaire avec pnpm 10 par défaut (voir
@@ -46,9 +46,9 @@ Chaque Dockerfile applicatif suit le même schéma :
    `CMD ["node", "dist/server.js"]`.
 
 `packages/db/package.json` déclare `node-pg-migrate` et `tsx` en dépendances (pas
-devDependencies) : ce sont les outils réellement exécutés au runtime de `microshop/db-tools`,
+devDependencies) : ce sont les outils réellement exécutés au runtime de `microservice-app/db-tools`,
 pas de simples outils de développement. Son Dockerfile installe uniquement
-`--prod --filter @microshop/db`, sans les devDependencies des autres paquets du workspace.
+`--prod --filter @microservice-app/db`, sans les devDependencies des autres paquets du workspace.
 
 `apps/frontend/Dockerfile` n'a pas d'étape `deploy` : le build stage produit un dossier statique
 (`dist/`), copié dans une image `nginx-unprivileged` (tourne nativement en non-root, écoute par
@@ -81,7 +81,7 @@ Un seul fichier à la racine (le contexte de build est toujours la racine) : exc
   `apps/frontend/nginx.conf` reste un simple serveur statique, sans connaissance du routage
   `/api/*`, pour rester valide tel quel derrière le futur Ingress.
 
-Réseau interne dédié (`microshop-internal`), pas de port publié pour `postgres`, `catalogue`,
+Réseau interne dédié (`microservice-app-internal`), pas de port publié pour `postgres`, `catalogue`,
 `orders`, `frontend` : seul `gateway` expose un port sur l'hôte.
 
 ### Commandes
@@ -112,14 +112,14 @@ bash scripts/smoke-test.sh
 echo $?   # 0 si tout est passé
 ```
 
-Utilise un projet compose dédié (`-p microshop-smoke`), n'interfère pas avec une éventuelle
-stack `microshop` déjà lancée manuellement.
+Utilise un projet compose dédié (`-p microservice-app-smoke`), n'interfère pas avec une éventuelle
+stack `microservice-app` déjà lancée manuellement.
 
 ## Scan de vulnérabilités (Trivy)
 
 ```bash
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  aquasec/trivy:latest image --severity CRITICAL,HIGH --scanners vuln microshop/catalogue:<tag>
+  aquasec/trivy:latest image --severity CRITICAL,HIGH --scanners vuln microservice-app/catalogue:<tag>
 # idem pour orders, frontend, db-tools
 ```
 
@@ -127,10 +127,10 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 
 | Image                 | CRITICAL | HIGH | Origine des findings restants                                                                                                                                                                                                                       |
 | --------------------- | :------: | :--: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `microshop/catalogue` |    0     |  2   | CLI `npm` embarquée dans l'image de base Node, jamais invoquée (le conteneur exécute `node dist/server.js` directement)                                                                                                                             |
-| `microshop/orders`    |    0     |  2   | idem                                                                                                                                                                                                                                                |
-| `microshop/frontend`  |    0     |  8   | Paquets système Alpine (`c-ares`, `libssl3`/`libcrypto3`, `libexpat`, `libxml2`) sans correctif Alpine publié à la date du scan                                                                                                                     |
-| `microshop/db-tools`  |    0     |  19  | Dépendances internes du binaire `pnpm` lui-même (tar/glob/minimatch/sigstore) ; jamais exercées car le conteneur ne fait qu'exécuter un script déjà installé (`pnpm run migrate:up` / `seed`), sans jamais réinstaller/patcher de paquet au runtime |
+| `microservice-app/catalogue` |    0     |  2   | CLI `npm` embarquée dans l'image de base Node, jamais invoquée (le conteneur exécute `node dist/server.js` directement)                                                                                                                             |
+| `microservice-app/orders`    |    0     |  2   | idem                                                                                                                                                                                                                                                |
+| `microservice-app/frontend`  |    0     |  8   | Paquets système Alpine (`c-ares`, `libssl3`/`libcrypto3`, `libexpat`, `libxml2`) sans correctif Alpine publié à la date du scan                                                                                                                     |
+| `microservice-app/db-tools`  |    0     |  19  | Dépendances internes du binaire `pnpm` lui-même (tar/glob/minimatch/sigstore) ; jamais exercées car le conteneur ne fait qu'exécuter un script déjà installé (`pnpm run migrate:up` / `seed`), sans jamais réinstaller/patcher de paquet au runtime |
 
 Aucune vulnérabilité **CRITICAL** non justifiée : toutes les images sont à 0 CRITICAL.
 

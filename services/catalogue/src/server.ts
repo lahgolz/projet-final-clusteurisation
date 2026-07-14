@@ -1,4 +1,4 @@
-import { createLogger } from '@microshop/shared';
+import { createLogger } from '@microservice-app/shared';
 import { loadConfig } from './config.js';
 import { createPool, warmPool } from './db.js';
 import { buildApp } from './app.js';

@@ -2,10 +2,10 @@
 
 set -euo pipefail
 
-CONTAINER_NAME="microshop-postgres-dev"
-POSTGRES_USER="${POSTGRES_USER:-microshop}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-microshop}"
-POSTGRES_DB="${POSTGRES_DB:-microshop}"
+CONTAINER_NAME="microservice-app-postgres-dev"
+POSTGRES_USER="${POSTGRES_USER:-microservice-app}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-microservice-app}"
+POSTGRES_DB="${POSTGRES_DB:-microservice-app}"
 POSTGRES_PORT="${POSTGRES_PORT:-5433}"
 
 if docker ps --format '{{.Names}}' | grep -qx "${CONTAINER_NAME}"; then

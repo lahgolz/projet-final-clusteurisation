@@ -9,7 +9,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/db/package.json packages/db/package.json
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts --prod --filter @microshop/db
+    pnpm install --frozen-lockfile --ignore-scripts --prod --filter @microservice-app/db
 
 FROM deps AS runtime
 ENV NODE_ENV=production

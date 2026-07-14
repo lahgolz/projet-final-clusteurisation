@@ -136,7 +136,7 @@ Procédure locale :
 
 ```bash
 pnpm dev:db:up
-TEST_DATABASE_URL=postgresql://microshop:microshop@localhost:5433/microshop pnpm --filter @microshop/db test
+TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/microservice-app pnpm --filter @microservice-app/db test
 ```
 
 ## Réinitialisation locale (développement uniquement)

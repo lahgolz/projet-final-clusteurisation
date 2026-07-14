@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Attente de la disponibilité de PostgreSQL..."
 ATTEMPTS=0
-until docker exec microshop-postgres-dev pg_isready -U "${POSTGRES_USER:-microshop}" >/dev/null 2>&1; do
+until docker exec microservice-app-postgres-dev pg_isready -U "${POSTGRES_USER:-microservice-app}" >/dev/null 2>&1; do
   ATTEMPTS=$((ATTEMPTS + 1))
   if [ "${ATTEMPTS}" -ge 30 ]; then
     echo "PostgreSQL n'est pas prêt après 30 tentatives." >&2

@@ -6,7 +6,7 @@ API Node.js (TypeScript + Fastify) responsable de la lecture du catalogue de pro
 
 ```bash
 cp .env.example .env   # adapter si besoin
-pnpm --filter @microshop/catalogue dev
+pnpm --filter @microservice-app/catalogue dev
 ```
 
 Prérequis : une base PostgreSQL migrée et peuplée (voir [`packages/db`](../../packages/db) et le
@@ -66,7 +66,7 @@ Retourne un objet produit unique, ou `404` avec `{"error":{"code":"PRODUCT_NOT_F
 ## Tests
 
 ```bash
-pnpm --filter @microshop/catalogue test
+pnpm --filter @microservice-app/catalogue test
 ```
 
 Les tests d'intégration qui nécessitent PostgreSQL sont automatiquement ignorés si
@@ -74,8 +74,8 @@ Les tests d'intégration qui nécessitent PostgreSQL sont automatiquement ignor�
 
 ```bash
 pnpm dev:db:up
-TEST_DATABASE_URL=postgresql://microshop:microshop@localhost:5433/microshop pnpm db:migrate
-TEST_DATABASE_URL=postgresql://microshop:microshop@localhost:5433/microshop pnpm --filter @microshop/catalogue test
+TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/microservice-app pnpm db:migrate
+TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/microservice-app pnpm --filter @microservice-app/catalogue test
 ```
 
 ## Arrêt

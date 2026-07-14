@@ -1,5 +1,5 @@
 {
-  "name": "microshop",
+  "name": "microservice-app",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -10,17 +10,17 @@
     "node": ">=20"
   },
   "scripts": {
-    "postinstall": "pnpm --filter @microshop/shared run build",
-    "dev": "concurrently -n catalogue,orders,frontend -c blue,green,magenta \"pnpm --filter @microshop/catalogue dev\" \"pnpm --filter @microshop/orders dev\" \"pnpm --filter @microshop/frontend dev\"",
+    "postinstall": "pnpm --filter @microservice-app/shared run build",
+    "dev": "concurrently -n catalogue,orders,frontend -c blue,green,magenta \"pnpm --filter @microservice-app/catalogue dev\" \"pnpm --filter @microservice-app/orders dev\" \"pnpm --filter @microservice-app/frontend dev\"",
     "build": "pnpm -r --filter=./packages/* --filter=./services/* --filter=./apps/* run build",
     "test": "pnpm -r --filter=./packages/* --filter=./services/* --filter=./apps/* run test",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r --filter=./packages/* --filter=./services/* --filter=./apps/* run typecheck",
-    "db:migrate": "pnpm --filter @microshop/db run migrate:up",
-    "db:rollback": "pnpm --filter @microshop/db run migrate:down",
-    "db:seed": "pnpm --filter @microshop/db run seed",
+    "db:migrate": "pnpm --filter @microservice-app/db run migrate:up",
+    "db:rollback": "pnpm --filter @microservice-app/db run migrate:down",
+    "db:seed": "pnpm --filter @microservice-app/db run seed",
     "dev:db:up": "bash scripts/dev-db-up.sh",
     "dev:db:down": "bash scripts/dev-db-down.sh",
     "dev:db:reset": "bash scripts/dev-db-reset.sh"

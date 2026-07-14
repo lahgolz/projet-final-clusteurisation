@@ -116,7 +116,7 @@ importers:
 
   services/catalogue:
     dependencies:
-      '@microshop/shared':
+      '@microservice-app/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       fastify:
@@ -147,7 +147,7 @@ importers:
 
   services/orders:
     dependencies:
-      '@microshop/shared':
+      '@microservice-app/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       fastify:

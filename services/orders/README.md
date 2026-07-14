@@ -7,7 +7,7 @@ commandes.
 
 ```bash
 cp .env.example .env   # adapter si besoin
-pnpm --filter @microshop/orders dev
+pnpm --filter @microservice-app/orders dev
 ```
 
 Prérequis : une base PostgreSQL migrée (voir [`packages/db`](../../packages/db)) et le service
@@ -89,7 +89,7 @@ Retourne la commande et ses lignes, ou `404 ORDER_NOT_FOUND`.
 ## Tests
 
 ```bash
-pnpm --filter @microshop/orders test
+pnpm --filter @microservice-app/orders test
 ```
 
 Les tests unitaires (schémas, client catalogue simulé via `fetch` stubbé) s'exécutent toujours.
@@ -98,8 +98,8 @@ Les tests d'intégration (transaction, rollback, dépendances réelles à Postgr
 
 ```bash
 pnpm dev:db:up
-TEST_DATABASE_URL=postgresql://microshop:microshop@localhost:5433/microshop pnpm db:migrate
-TEST_DATABASE_URL=postgresql://microshop:microshop@localhost:5433/microshop pnpm --filter @microshop/orders test
+TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/microservice-app pnpm db:migrate
+TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/microservice-app pnpm --filter @microservice-app/orders test
 ```
 
 ## Arrêt

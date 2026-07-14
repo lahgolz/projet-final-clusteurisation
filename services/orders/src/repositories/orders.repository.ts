@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import type { Order, OrderItem, OrderStatus } from '@microshop/shared';
+import type { Order, OrderItem, OrderStatus } from '@microservice-app/shared';
 
 interface OrderRow {
   id: string;

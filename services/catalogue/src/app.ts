@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
-import { logHttpRequest, type Logger } from '@microshop/shared';
+import { logHttpRequest, type Logger } from '@microservice-app/shared';
 import { productsRoutes } from './routes/products.routes.js';
 import { healthRoutes } from './routes/health.routes.js';
 

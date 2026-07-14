@@ -16,7 +16,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 FROM deps AS build
 COPY tsconfig.base.json ./
 COPY apps/frontend apps/frontend
-RUN pnpm --filter @microshop/frontend run build
+RUN pnpm --filter @microservice-app/frontend run build
 
 FROM nginxinc/nginx-unprivileged:1.29.8-alpine3.23 AS runtime
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf

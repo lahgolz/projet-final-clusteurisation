@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
-import { createLogger, type Product } from '@microshop/shared';
+import { createLogger, type Product } from '@microservice-app/shared';
 import { buildApp } from '../../src/app.js';
 import {
   ProductNotFoundError,
