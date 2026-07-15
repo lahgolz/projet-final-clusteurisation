@@ -64,7 +64,7 @@ export function App() {
 
   return (
     <main className="app">
-      <h1>microservice-app — Catalogue</h1>
+      <h1>Catalogue</h1>
 
       {state.status === 'loading' && <p role="status">Chargement du catalogue…</p>}
 

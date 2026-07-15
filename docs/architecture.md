@@ -1,4 +1,4 @@
-# Architecture — microservice-app
+# Architecture
 
 ## Vue d'ensemble
 
@@ -24,7 +24,7 @@ valider un produit et récupérer son prix.
 flowchart TD
     Browser["Navigateur"]
 
-    subgraph Cluster["Cluster Kubernetes — namespace microservice-app"]
+    subgraph Cluster["Cluster Kubernetes : namespace microservice-app"]
         Ingress["Ingress NGINX"]
         FE["frontend (Deployment)\nport 8080"]
         CAT["catalogue (Deployment)\nport 4001"]
@@ -60,15 +60,15 @@ flowchart TD
 
 ## Flux réseau
 
-1. Navigateur → Ingress (HTTPS en production, HTTP en démonstration locale).
-2. Ingress → `frontend` pour les routes autres que `/api/*`.
-3. Ingress → `catalogue` pour `/api/catalogue/*`.
-4. Ingress → `orders` pour `/api/orders/*`.
-5. `orders` → `catalogue` (HTTP interne au cluster, `CATALOGUE_BASE_URL`) uniquement lors de la
+1. Navigateur -> Ingress (HTTPS en production, HTTP en démonstration locale).
+2. Ingress -> `frontend` pour les routes autres que `/api/*`.
+3. Ingress -> `catalogue` pour `/api/catalogue/*`.
+4. Ingress -> `orders` pour `/api/orders/*`.
+5. `orders` -> `catalogue` (HTTP interne au cluster, `CATALOGUE_BASE_URL`) uniquement lors de la
    création d'une commande, avec timeout explicite.
-6. `catalogue` → PostgreSQL (lecture seule dans le périmètre actuel).
-7. `orders` → PostgreSQL (lecture/écriture transactionnelle).
-8. Job `db-migrate` → PostgreSQL, exécuté hors du cycle de vie des Deployments applicatifs.
+6. `catalogue` -> PostgreSQL (lecture seule dans le périmètre actuel).
+7. `orders` -> PostgreSQL (lecture/écriture transactionnelle).
+8. Job `db-migrate` -> PostgreSQL, exécuté hors du cycle de vie des Deployments applicatifs.
 
 ## Contrats HTTP initiaux
 
@@ -139,5 +139,5 @@ présent sur la machine.
   décrément de `stock`).
 - Pas de pagination sur `GET /api/catalogue/products` au-delà d'une limite fixe raisonnable
   : suffisant pour un jeu de données de démonstration.
-- Le couplage `orders → catalogue` est synchrone (HTTP avec timeout), pas de file de messages :
+- Le couplage `orders -> catalogue` est synchrone (HTTP avec timeout), pas de file de messages :
   choix assumé pour rester simple et démontrable.

@@ -2,9 +2,10 @@
 
 Application microservices de démonstration (frontend + 2 API + PostgreSQL) déployée sur
 Kubernetes. Voir [`docs/architecture.md`](./docs/architecture.md) pour la vue d'ensemble,
-[`docs/data-model.md`](./docs/data-model.md) pour le modèle de données, et
+[`docs/data-model.md`](./docs/data-model.md) pour le modèle de données,
 [`docs/containerisation.md`](./docs/containerisation.md) pour les images Docker et
-l'environnement local.
+l'environnement local, et [`docs/ci-cd.md`](./docs/ci-cd.md) pour la pipeline CI/CD (stages,
+secrets GitHub à configurer, rollback).
 
 ## Structure du dépôt
 
@@ -21,11 +22,14 @@ l'environnement local.
 ├── k8s/
 │   ├── base/           # manifests Kubernetes de base
 │   └── overlays/       # variantes Kustomize (dev/prod)
-├── docs/                # documentation d'architecture, modèle de données, conteneurisation
+├── docs/                # documentation d'architecture, modèle de données, conteneurisation, CI/CD
 ├── scripts/             # scripts de développement (base de données locale, smoke test)
+│   └── ci/              # scripts utilisés uniquement par la pipeline CI/CD
 ├── docker-compose.yml   # environnement local complet (postgres, migrate, seed, apps, gateway)
 ├── gateway.nginx.conf   # reverse proxy local (rôle d'Ingress, cf. docker-compose.yml)
-└── .github/workflows/   # pipeline CI/CD
+└── .github/
+    ├── workflows/       # pipeline CI/CD (ci.yml, cd.yml)
+    └── actions/         # composite actions réutilisées par les workflows
 ```
 
 ## Prérequis
@@ -90,4 +94,3 @@ Détails, Dockerfiles, choix de versions et résultats du scan Trivy :
 | `pnpm db:migrate`  | Applique les migrations PostgreSQL                            |
 | `pnpm db:rollback` | Annule la dernière migration                                  |
 | `pnpm db:seed`     | Insère/actualise le jeu de données de démonstration           |
- 

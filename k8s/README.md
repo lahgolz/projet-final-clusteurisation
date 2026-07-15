@@ -3,6 +3,10 @@
 Les manifests utilisent Kustomize : `base` contient les ressources communes, et `overlays/dev`
 ainsi que `overlays/prod` portent les différences d'environnement.
 
+Ce document couvre le déploiement manuel. Pour le déploiement automatisé (CI/CD GitHub Actions,
+build/scan/push des images, secrets à configurer, rollback), voir
+[`docs/ci-cd.md`](../docs/ci-cd.md).
+
 ## Prérequis
 
 - un cluster Kubernetes avec une `StorageClass` par défaut ;
@@ -71,7 +75,7 @@ Le `secretGenerator` Kustomize crée le Secret Kubernetes `microservice-app-db` 
 
 Le `StatefulSet` `postgres` ne fixe pas de `storageClassName` sur son `volumeClaimTemplate` : le
 PVC utilise donc la `StorageClass` marquée par défaut sur le cluster (`standard` sur minikube et
-kind). C'est ce qui rend la classe de stockage configurable par environnement — pour en imposer
+kind). C'est ce qui rend la classe de stockage configurable par environnement, pour en imposer
 une précise (ex. `premium-rwo` sur GKE, `gp3` sur EKS), ajoutez un patch Kustomize dans l'overlay
 concerné :
 
@@ -95,14 +99,14 @@ puis référencez-le dans `patches:` de `overlays/prod/kustomization.yaml`.
 **Politique de rétention.** La plupart des `StorageClass` provisionnées dynamiquement (dont
 `standard` sur minikube/kind) ont `reclaimPolicy: Delete` : supprimer le PVC supprime aussi le
 volume sous-jacent et les données. En production, préférez une `StorageClass` avec
-`reclaimPolicy: Retain` (ou activez des sauvegardes régulières, voir l'étape 14) pour survivre à
+`reclaimPolicy: Retain` (ou activez des sauvegardes régulières) pour survivre à
 une suppression accidentelle du PVC.
 
 **Limite `hostPath` / provisioner local.** Sur minikube (`k8s.io/minikube-hostpath`) comme sur kind
 (`rancher.io/local-path`), le volume est un répertoire local au nœud unique : il ne survit pas à la
 suppression du nœud/VM, ne se réplique pas, et un cluster multi-nœuds ne garantit pas que le pod
 `postgres-0` sera reprogrammé sur le nœud qui détient les données. C'est acceptable pour une démo
-mono-nœud, mais inadapté à la production — voir [`docs/resilience.md`](../docs/resilience.md)
+mono-nœud, mais inadapté à la production, voir [`docs/resilience.md`](../docs/resilience.md)
 pour les alternatives (CloudNativePG, Patroni, service managé).
 
 ### Vérifier la persistance

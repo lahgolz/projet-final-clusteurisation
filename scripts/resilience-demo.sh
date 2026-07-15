@@ -57,7 +57,7 @@ kubectl -n "$NS" get pdb
 
 step "Vérification que l'application répond :"
 HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/api/catalogue/products")
-[ "$HTTP_CODE" = "200" ] && ok "GET /api/catalogue/products → HTTP $HTTP_CODE" \
+[ "$HTTP_CODE" = "200" ] && ok "GET /api/catalogue/products -> HTTP $HTTP_CODE" \
   || echo "  ✗ HTTP $HTTP_CODE — vérifier que le cluster est démarré et que microservice-app.local est dans /etc/hosts"
 
 pause
@@ -75,7 +75,7 @@ kubectl -n "$NS" delete pod "$POD"
 echo "  Pod supprimé : $POD"
 
 step "Observation du redémarrage (Ctrl+C pour passer à l'étape suivante) :"
-echo "  → Kubernetes recrée automatiquement le pod via le Deployment"
+echo "  -> Kubernetes recrée automatiquement le pod via le Deployment"
 kubectl -n "$NS" get pods -l app.kubernetes.io/name=catalogue -w &
 WATCH_PID=$!
 sleep 15
@@ -83,7 +83,7 @@ kill $WATCH_PID 2>/dev/null || true
 
 step "L'application est toujours disponible pendant le redémarrage :"
 HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/api/catalogue/products")
-ok "GET /api/catalogue/products → HTTP $HTTP_CODE"
+ok "GET /api/catalogue/products -> HTTP $HTTP_CODE"
 
 pause
 
@@ -98,8 +98,8 @@ bash "${SCRIPT_DIR}/load-test.sh" "$BASE_URL" 90 20 &
 LOAD_PID=$!
 
 step "Observation du HPA (90 secondes — le scale-up peut prendre 1-2 min) :"
-echo "  → Cible : 70% CPU en moyenne sur les pods catalogue"
-echo "  → Le HPA va ajouter des replicas si le seuil est dépassé"
+echo "  -> Cible : 70% CPU en moyenne sur les pods catalogue"
+echo "  -> Le HPA va ajouter des replicas si le seuil est dépassé"
 echo ""
 
 # Observer le HPA pendant 90s
@@ -120,7 +120,7 @@ step "Pods catalogue après scale-up :"
 kubectl -n "$NS" get pods -l app.kubernetes.io/name=catalogue
 
 echo ""
-echo "  → Le HPA redescendra automatiquement après ~5 minutes de stabilisation"
+echo "  -> Le HPA redescendra automatiquement après ~5 minutes de stabilisation"
 
 pause
 
@@ -169,15 +169,15 @@ header "4. RollingUpdate — mise à jour sans interruption"
 step "Déclenchement d'un rolling restart de catalogue :"
 kubectl -n "$NS" rollout restart deployment/catalogue
 echo ""
-echo "  → Kubernetes applique la stratégie RollingUpdate (maxUnavailable:0, maxSurge:1)"
-echo "  → Chaque nouveau pod attend sa readiness probe avant de remplacer l'ancien"
+echo "  -> Kubernetes applique la stratégie RollingUpdate (maxUnavailable:0, maxSurge:1)"
+echo "  -> Chaque nouveau pod attend sa readiness probe avant de remplacer l'ancien"
 
 step "Suivi du rollout :"
 kubectl -n "$NS" rollout status deployment/catalogue --timeout=120s
 
 step "Vérification disponibilité pendant le rollout :"
 HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/api/catalogue/products")
-ok "GET /api/catalogue/products → HTTP $HTTP_CODE"
+ok "GET /api/catalogue/products -> HTTP $HTTP_CODE"
 
 step "Historique des rollouts :"
 kubectl -n "$NS" rollout history deployment/catalogue

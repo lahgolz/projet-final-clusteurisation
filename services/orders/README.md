@@ -18,8 +18,8 @@ Prérequis : une base PostgreSQL migrée (voir [`packages/db`](../../packages/db
 | Variable               | Défaut | Description                                    |
 | ---------------------- | ------ | ---------------------------------------------- |
 | `PORT`                 | `4002` | Port d'écoute HTTP                             |
-| `DATABASE_URL`         | —      | Chaîne de connexion PostgreSQL (obligatoire)   |
-| `CATALOGUE_BASE_URL`   | —      | URL de base du service catalogue (obligatoire) |
+| `DATABASE_URL`         | -      | Chaîne de connexion PostgreSQL (obligatoire)   |
+| `CATALOGUE_BASE_URL`   | -      | URL de base du service catalogue (obligatoire) |
 | `LOG_LEVEL`            | `info` | Niveau de log pino                             |
 | `REQUEST_TIMEOUT_MS`   | `5000` | Timeout de connexion et de requête SQL         |
 | `CATALOGUE_TIMEOUT_MS` | `2000` | Timeout de l'appel HTTP vers catalogue         |
@@ -59,7 +59,7 @@ Comportement selon la réponse de catalogue :
 
 Contraintes : `items` non vide, au plus 50 lignes, `productId` UUID valide, `quantity` entier
 strictement positif. Le total (`totalCents`) et le prix unitaire capturé (`unitPriceCents`) sont
-calculés côté serveur à partir du prix retourné par catalogue au moment de la commande — jamais
+calculés côté serveur à partir du prix retourné par catalogue au moment de la commande, jamais
 fournis par le client.
 
 Réponse `201` :

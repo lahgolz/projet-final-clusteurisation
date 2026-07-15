@@ -39,7 +39,9 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const body = (await response.json()) as ApiErrorBody;
       if (body?.error?.message) message = body.error.message;
-    } catch {}
+    } catch {
+      // We already have a fallback message
+    }
     throw new ApiError(message, response.status);
   }
 

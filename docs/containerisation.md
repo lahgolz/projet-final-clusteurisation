@@ -5,12 +5,12 @@ smoke test et scan de vulnérabilités.
 
 ## Images
 
-| Image                 | Dockerfile                      | Base d'exécution                                         | Port |
-| --------------------- | ------------------------------- | -------------------------------------------------------- | ---- |
+| Image                        | Dockerfile                      | Base d'exécution                                         | Port |
+| ---------------------------- | ------------------------------- | -------------------------------------------------------- | ---- |
 | `microservice-app/catalogue` | `services/catalogue/Dockerfile` | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | 4001 |
 | `microservice-app/orders`    | `services/orders/Dockerfile`    | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | 4002 |
 | `microservice-app/frontend`  | `apps/frontend/Dockerfile`      | `nginxinc/nginx-unprivileged:1.29.8-alpine3.23`, uid 101 | 8080 |
-| `microservice-app/db-tools`  | `packages/db/Dockerfile`        | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | —    |
+| `microservice-app/db-tools`  | `packages/db/Dockerfile`        | `node:22.23.1-alpine3.24`, utilisateur `node` (non-root) | -    |
 
 Toutes les images sont construites **depuis la racine du monorepo** (`context: .`), pas depuis
 le dossier du service : `catalogue` et `orders` dépendent du paquet workspace
@@ -34,7 +34,7 @@ Chaque Dockerfile applicatif suit le même schéma :
    corepack/pnpm.
 2. `deps` : copie uniquement les `package.json` du workspace puis `pnpm install
 --frozen-lockfile --ignore-scripts` (le `--ignore-scripts` évite d'exécuter le `postinstall`
-   racine — qui build `@microservice-app/shared` — avant que son code source ne soit copié).
+   racine, qui build `@microservice-app/shared`, avant que son code source ne soit copié).
 3. `build` : copie le code source, build `@microservice-app/shared` puis le service, puis
    `pnpm --filter <service> deploy --prod --legacy /prod/<service>` : cette commande résout les
    dépendances `workspace:*` en fichiers réels et ne conserve que les dépendances de production,
@@ -52,7 +52,7 @@ pas de simples outils de développement. Son Dockerfile installe uniquement
 
 `apps/frontend/Dockerfile` n'a pas d'étape `deploy` : le build stage produit un dossier statique
 (`dist/`), copié dans une image `nginx-unprivileged` (tourne nativement en non-root, écoute par
-défaut sur le port 8080 — cohérent avec `apps/frontend/nginx.conf`).
+défaut sur le port 8080, cohérent avec `apps/frontend/nginx.conf`).
 
 ### `.dockerignore`
 
@@ -73,7 +73,7 @@ Un seul fichier à la racine (le contexte de build est toujours la racine) : exc
 
 - `postgres` (volume nommé `postgres-data` pour la persistance) ;
 - `migrate` puis `seed` : jobs uniques (`restart: "no"`), enchaînés via
-  `depends_on: condition: service_completed_successfully` — jamais exécutés en parallèle ;
+  `depends_on: condition: service_completed_successfully`, jamais exécutés en parallèle ;
 - `catalogue`, `orders`, `frontend` : chacun avec un `healthcheck` applicatif
   (`/health/ready` ou `/healthz`) ;
 - `gateway` : reverse proxy nginx simple (image `nginx:1.29.8-alpine3.23`, pas l'image
@@ -125,8 +125,8 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 
 ### Résultat
 
-| Image                 | CRITICAL | HIGH | Origine des findings restants                                                                                                                                                                                                                       |
-| --------------------- | :------: | :--: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image                        | CRITICAL | HIGH | Origine des findings restants                                                                                                                                                                                                                       |
+| ---------------------------- | :------: | :--: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `microservice-app/catalogue` |    0     |  2   | CLI `npm` embarquée dans l'image de base Node, jamais invoquée (le conteneur exécute `node dist/server.js` directement)                                                                                                                             |
 | `microservice-app/orders`    |    0     |  2   | idem                                                                                                                                                                                                                                                |
 | `microservice-app/frontend`  |    0     |  8   | Paquets système Alpine (`c-ares`, `libssl3`/`libcrypto3`, `libexpat`, `libxml2`) sans correctif Alpine publié à la date du scan                                                                                                                     |
@@ -158,7 +158,7 @@ CRITICAL que ci-dessus dans son Alpine de base. `nginxinc/nginx-unprivileged:1.2
   (persistance assurée par le volume PostgreSQL, indépendant du cycle de vie des conteneurs
   applicatifs).
 - `docker exec <container> id` / `docker inspect --format '{{.Config.User}}'` : `catalogue` et
-  `orders` tournent en `node` (uid 1000), `frontend` en `nginx` (uid 101) — aucun conteneur
+  `orders` tournent en `node` (uid 1000), `frontend` en `nginx` (uid 101), aucun conteneur
   applicatif en root.
 - Arrêt (`docker stop`, `docker compose down`) : logs `shutting_down` puis `shutdown_complete`
   pour `catalogue`/`orders`, sortie rapide sans dépasser le délai de grâce.

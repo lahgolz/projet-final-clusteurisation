@@ -17,7 +17,7 @@ Prérequis : une base PostgreSQL migrée et peuplée (voir [`packages/db`](../..
 | Variable             | Défaut | Description                                           |
 | -------------------- | ------ | ----------------------------------------------------- |
 | `PORT`               | `4001` | Port d'écoute HTTP                                    |
-| `DATABASE_URL`       | —      | Chaîne de connexion PostgreSQL (obligatoire)          |
+| `DATABASE_URL`       | -      | Chaîne de connexion PostgreSQL (obligatoire)          |
 | `LOG_LEVEL`          | `info` | Niveau de log pino                                    |
 | `DB_POOL_MIN`        | `2`    | Connexions ouvertes de manière proactive au démarrage |
 | `DB_POOL_MAX`        | `10`   | Taille maximale du pool `pg`                          |

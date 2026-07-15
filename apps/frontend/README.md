@@ -17,7 +17,7 @@ trois).
 ## Configuration
 
 Le frontend appelle les API via des **chemins relatifs** (`/api/catalogue/...`,
-`/api/orders/...`), pensés pour passer par l'Ingress une fois déployé — aucune URL interne au
+`/api/orders/...`), pensés pour passer par l'Ingress une fois déployé, aucune URL interne au
 cluster n'est exposée au navigateur. `VITE_API_BASE_URL` (voir `.env.example`) permet de préfixer
 ces appels si les API sont un jour exposées sur une origine différente ; laissé vide par défaut.
 

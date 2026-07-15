@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-workspace
+      - run: pnpm run format:check
+      - run: pnpm run lint
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-workspace
+      - run: pnpm run typecheck
+
+  build:
+    name: Build applicatif
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-workspace
+      - run: pnpm run build
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.6-alpine3.21
+        env:
+          POSTGRES_USER: microservice_app
+          POSTGRES_PASSWORD: microservice_app
+          POSTGRES_DB: microservice_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U microservice_app -d microservice_app_test"
+          --health-interval=5s --health-timeout=3s --health-retries=10
+    env:
+      TEST_DATABASE_URL: postgresql://microservice_app:microservice_app@localhost:5432/microservice_app_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-workspace
+
+      - name: Tests unitaires sans dépendance base de données (shared, frontend)
+        run: |
+          pnpm --filter @microservice-app/shared run test
+          pnpm --filter @microservice-app/frontend run test
+
+      # packages/db teste un cycle complet migrate up -> down sur TEST_DATABASE_URL : il doit
+      # tourner seul, avant les tests d'intégration catalogue/orders, car il termine en supprimant
+      # le schéma qu'il vient de créer.
+      - name: Test des migrations (cycle up/down isolé)
+        run: pnpm --filter @microservice-app/db run test
+
+      - name: Ré-application du schéma pour les tests d'intégration API
+        run: pnpm --filter @microservice-app/db run migrate:up
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Tests d'intégration catalogue et orders
+        run: |
+          pnpm --filter @microservice-app/catalogue run test
+          pnpm --filter @microservice-app/orders run test
