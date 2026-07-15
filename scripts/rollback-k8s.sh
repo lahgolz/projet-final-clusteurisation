@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# Stratégie de rollback : revient à la révision précédente de chaque Deployment applicatif.
-# Utilisé automatiquement par la CD quand le smoke test échoue après un déploiement, et
-# utilisable manuellement en cas d'incident constaté après coup.
-#
-# Usage :
-#   KUBECONFIG=... bash scripts/rollback-k8s.sh                 # revient d'une révision
-#   KUBECONFIG=... bash scripts/rollback-k8s.sh --to-revision 4 # revient à une révision précise
-#
-# Consulter l'historique avant de choisir une révision :
-#   kubectl -n microservice-app rollout history deployment/catalogue
 
 set -euo pipefail
 

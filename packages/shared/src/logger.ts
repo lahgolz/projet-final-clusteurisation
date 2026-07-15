@@ -11,8 +11,8 @@ const REDACT_PATHS = [
 
 export interface HttpLogFields {
   method: string;
-  route: string;
-  status: number;
+  path: string;
+  statusCode: number;
   durationMs: number;
   requestId: string;
 }

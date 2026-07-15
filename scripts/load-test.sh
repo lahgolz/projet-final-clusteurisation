@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Génère de la charge HTTP sur le service catalogue pour déclencher le HPA.
-# Nécessite : curl, bc
-#
-# Usage: bash scripts/load-test.sh [BASE_URL] [DURÉE_SECONDES] [CONCURRENCE]
-#   BASE_URL     URL de base du cluster (défaut: http://microservice-app.local)
-#   DURÉE        durée de la charge en secondes (défaut: 120)
-#   CONCURRENCE  nombre de workers parallèles (défaut: 20)
-#
-# Exemple soutenance :
-#   Terminal 1 : kubectl -n microservice-app get hpa -w
-#   Terminal 2 : bash scripts/load-test.sh
 
 set -euo pipefail
 
@@ -18,7 +7,6 @@ DURATION="${2:-120}"
 CONCURRENCY="${3:-20}"
 TARGET="${BASE_URL}/api/catalogue/products"
 
-# Fichier de signal d'arrêt partagé entre les workers
 STOP_FILE="$(mktemp)"
 
 cleanup() {
@@ -42,12 +30,10 @@ echo "    Surveiller le HPA dans un autre terminal :"
 echo "      kubectl -n microservice-app get hpa -w"
 echo ""
 
-# Lancer les workers en arrière-plan
 for i in $(seq 1 "$CONCURRENCY"); do
   worker &
 done
 
-# Compteur de progression
 START=$(date +%s)
 END=$((START + DURATION))
 while [ "$(date +%s)" -lt "$END" ]; do

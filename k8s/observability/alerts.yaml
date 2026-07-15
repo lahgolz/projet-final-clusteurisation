@@ -1,0 +1,74 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: microservice-app-alerts
+  namespace: microservice-app
+  labels:
+    app.kubernetes.io/part-of: microservice-app
+spec:
+  groups:
+    - name: microservice-app.rules
+      rules:
+        - alert: HighHttp5xxRate
+          expr: |
+            sum by (service) (rate(http_requests_total{service=~"catalogue|orders", status_code=~"5.."}[5m]))
+            /
+            sum by (service) (rate(http_requests_total{service=~"catalogue|orders"}[5m]))
+            > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Taux d'erreur 5xx élevé sur {{ $labels.service }}"
+            description: >-
+              Plus de 5 % des requêtes HTTP vers {{ $labels.service }} échouent en 5xx
+              depuis 5 minutes (valeur actuelle : {{ $value | humanizePercentage }}).
+            action: >-
+              Vérifier les logs applicatifs (kubectl logs) et l'état de la base de données ;
+              envisager un rollback (kubectl rollout undo) si la régression suit un déploiement.
+
+        - alert: ServiceWithoutAvailableReplica
+          expr: kube_deployment_status_replicas_available{namespace="microservice-app"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aucun replica disponible pour {{ $labels.deployment }}"
+            description: >-
+              Le déploiement {{ $labels.deployment }} n'a plus aucun pod disponible
+              depuis 2 minutes : le service est indisponible.
+            action: >-
+              Vérifier kubectl get pods/events, l'image déployée et les probes de santé ;
+              redémarrer ou revenir à la révision précédente si nécessaire.
+
+        - alert: PodCrashLoopBackOff
+          expr: kube_pod_container_status_waiting_reason{namespace="microservice-app", reason="CrashLoopBackOff"} == 1
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} en CrashLoopBackOff"
+            description: >-
+              Le conteneur {{ $labels.container }} du pod {{ $labels.pod }} redémarre en boucle
+              depuis 2 minutes.
+            action: >-
+              Consulter kubectl logs --previous et kubectl describe pod pour identifier la cause
+              (erreur de configuration, dépendance indisponible, crash applicatif).
+
+        - alert: PodMemoryNearLimit
+          expr: |
+            container_memory_working_set_bytes{namespace="microservice-app", container!="", container!="POD"}
+            / on (namespace, pod, container)
+            kube_pod_container_resource_limits{namespace="microservice-app", resource="memory"}
+            > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Mémoire proche de la limite pour {{ $labels.pod }}/{{ $labels.container }}"
+            description: >-
+              Le conteneur {{ $labels.container }} du pod {{ $labels.pod }} utilise plus de 90 %
+              de sa limite mémoire depuis 5 minutes (risque d'OOMKill).
+            action: >-
+              Vérifier une fuite mémoire potentielle, augmenter la limite si le niveau est
+              normal, ou surveiller un OOMKill imminent (kubectl describe pod).

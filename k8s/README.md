@@ -5,7 +5,9 @@ ainsi que `overlays/prod` portent les différences d'environnement.
 
 Ce document couvre le déploiement manuel. Pour le déploiement automatisé (CI/CD GitHub Actions,
 build/scan/push des images, secrets à configurer, rollback), voir
-[`docs/ci-cd.md`](../docs/ci-cd.md).
+[`docs/ci-cd.md`](../docs/ci-cd.md). Pour les logs, métriques, dashboards et l'alerting
+(Prometheus/Grafana installés séparément via Helm, manifests dans `k8s/observability/`), voir
+[`docs/observability.md`](../docs/observability.md).
 
 ## Prérequis
 

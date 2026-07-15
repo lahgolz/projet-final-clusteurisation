@@ -72,4 +72,16 @@ describe('catalogueClient', () => {
     const client = createCatalogueClient({ baseUrl: 'http://catalogue.local', timeoutMs: 1000 });
     await expect(client.getProduct(productId)).rejects.toBeInstanceOf(CatalogueUnavailableError);
   });
+
+  it('forwards the requestId as x-request-id for cross-service log correlation', async () => {
+    const product = { id: productId, name: 'Test', priceCents: 1000 };
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(product), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = createCatalogueClient({ baseUrl: 'http://catalogue.local', timeoutMs: 1000 });
+    await client.getProduct(productId, 'req-abc-123');
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['x-request-id']).toBe('req-abc-123');
+  });
 });

@@ -18,7 +18,7 @@ export class CatalogueUnavailableError extends Error {
 }
 
 export interface CatalogueClient {
-  getProduct(productId: string): Promise<Product>;
+  getProduct(productId: string, requestId?: string): Promise<Product>;
 }
 
 export interface CatalogueClientOptions {
@@ -31,13 +31,16 @@ export function createCatalogueClient({
   timeoutMs,
 }: CatalogueClientOptions): CatalogueClient {
   return {
-    async getProduct(productId: string): Promise<Product> {
+    async getProduct(productId: string, requestId?: string): Promise<Product> {
       let response: Response;
       try {
         response = await fetchWithTimeout(`${baseUrl}/api/catalogue/products/${productId}`, {
           method: 'GET',
           timeoutMs,
-          headers: { accept: 'application/json' },
+          headers: {
+            accept: 'application/json',
+            ...(requestId ? { 'x-request-id': requestId } : {}),
+          },
         });
       } catch (error) {
         if (error instanceof TimeoutError) {

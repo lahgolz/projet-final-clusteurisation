@@ -33,7 +33,7 @@ export async function ordersRoutes(
 
     try {
       const products = await Promise.all(
-        uniqueProductIds.map((id) => catalogueClient.getProduct(id)),
+        uniqueProductIds.map((id) => catalogueClient.getProduct(id, String(request.id))),
       );
       products.forEach((product, index) => {
         const productId = uniqueProductIds[index];

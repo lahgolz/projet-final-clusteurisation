@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Démo de résilience et scalabilité pour la soutenance.
-# Démontre : self-healing (kill pod), HPA (charge CPU), protection PDB (drain node).
-#
-# Prérequis :
-#   - cluster Kind actif avec l'overlay dev déployé
-#   - metrics-server installé et fonctionnel
-#   - microservice-app.local résolu vers 127.0.0.1
-#   - catalogue déployé avec au moins 2 replicas
-#     (si overlay dev : kubectl -n microservice-app scale deploy/catalogue --replicas=2)
-#
-# Usage : bash scripts/resilience-demo.sh [BASE_URL]
 
 set -euo pipefail
 
@@ -17,7 +6,6 @@ NS="microservice-app"
 BASE_URL="${1:-http://microservice-app.local}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ─────────────────────────────────────────────────────────────
 pause() {
   echo ""
   echo "  [Appuyez sur Entrée pour continuer...]"
@@ -40,7 +28,6 @@ ok() {
   echo "  ✓ $1"
 }
 
-# ─────────────────────────────────────────────────────────────
 header "0. État initial du cluster"
 
 step "Tous les pods du namespace $NS :"
@@ -62,7 +49,6 @@ HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/api/catalogue/pr
 
 pause
 
-# ─────────────────────────────────────────────────────────────
 header "1. Self-healing — kill d'un pod catalogue"
 
 step "Pods catalogue avant suppression :"
@@ -87,7 +73,6 @@ ok "GET /api/catalogue/products -> HTTP $HTTP_CODE"
 
 pause
 
-# ─────────────────────────────────────────────────────────────
 header "2. HPA — scale automatique sous charge CPU"
 
 step "État initial du HPA catalogue :"
@@ -102,7 +87,6 @@ echo "  -> Cible : 70% CPU en moyenne sur les pods catalogue"
 echo "  -> Le HPA va ajouter des replicas si le seuil est dépassé"
 echo ""
 
-# Observer le HPA pendant 90s
 END=$(($(date +%s) + 90))
 while [ "$(date +%s)" -lt "$END" ]; do
   kubectl -n "$NS" get hpa catalogue --no-headers 2>/dev/null \
@@ -124,7 +108,6 @@ echo "  -> Le HPA redescendra automatiquement après ~5 minutes de stabilisation
 
 pause
 
-# ─────────────────────────────────────────────────────────────
 header "3. PodDisruptionBudget — protection lors d'un drain de nœud"
 
 step "PDB configurés :"
@@ -136,7 +119,6 @@ echo "  Lors d'un drain de nœud (kubectl drain), Kubernetes respecte cette cont
 echo "  et ne supprime pas un pod si cela violerait le PDB."
 echo ""
 
-# Vérification : avec 1 seul replica, le drain serait bloqué par le PDB
 CATALOGUE_REPLICAS=$(kubectl -n "$NS" get deploy catalogue -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
 if [ "$CATALOGUE_REPLICAS" -ge 2 ]; then
   NODES=$(kubectl get nodes --no-headers | awk '{print $1}')
@@ -163,7 +145,6 @@ fi
 
 pause
 
-# ─────────────────────────────────────────────────────────────
 header "4. RollingUpdate — mise à jour sans interruption"
 
 step "Déclenchement d'un rolling restart de catalogue :"
@@ -184,7 +165,6 @@ kubectl -n "$NS" rollout history deployment/catalogue
 
 pause
 
-# ─────────────────────────────────────────────────────────────
 header "5. Rollback"
 
 step "Rollback vers la révision précédente :"
@@ -196,7 +176,6 @@ kubectl -n "$NS" rollout status deployment/catalogue --timeout=120s
 ok "Rollback effectué. Révisions disponibles :"
 kubectl -n "$NS" rollout history deployment/catalogue
 
-# ─────────────────────────────────────────────────────────────
 header "Démo terminée — commandes utiles"
 echo ""
 echo "  kubectl -n $NS get all"

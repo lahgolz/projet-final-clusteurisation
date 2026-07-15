@@ -1,0 +1,141 @@
+{
+  "id": null,
+  "uid": "microservice-app-overview",
+  "title": "microservice-app – Overview",
+  "description": "Trafic, erreurs, latence, ressources et replicas pour catalogue/orders.",
+  "tags": ["microservice-app"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Trafic par service (req/s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service) (rate(http_requests_total{service=~\"catalogue|orders\"}[5m]))",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Taux d'erreur 5xx par service",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service) (rate(http_requests_total{service=~\"catalogue|orders\", status_code=~\"5..\"}[5m])) / sum by (service) (rate(http_requests_total{service=~\"catalogue|orders\"}[5m]))",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Latence p50 / p95 / p99 (catalogue+orders)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le, service) (rate(http_request_duration_seconds_bucket{service=~\"catalogue|orders\"}[5m])))",
+          "legendFormat": "p50 {{service}}"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket{service=~\"catalogue|orders\"}[5m])))",
+          "legendFormat": "p95 {{service}}"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, service) (rate(http_request_duration_seconds_bucket{service=~\"catalogue|orders\"}[5m])))",
+          "legendFormat": "p99 {{service}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Connexions au pool PostgreSQL",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "db_pool_connections{service=~\"catalogue|orders\"}",
+          "legendFormat": "{{service}} – {{state}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "CPU par pod (namespace microservice-app)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"microservice-app\", container!=\"POD\"}[5m]))",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Mémoire par pod (namespace microservice-app)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"microservice-app\", container!=\"POD\"})",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Replicas désirés vs disponibles",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "kube_deployment_spec_replicas{namespace=\"microservice-app\"}",
+          "legendFormat": "{{deployment}} – désirés"
+        },
+        {
+          "refId": "B",
+          "expr": "kube_deployment_status_replicas_available{namespace=\"microservice-app\"}",
+          "legendFormat": "{{deployment}} – disponibles"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "État des pods (namespace microservice-app)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "kube_pod_status_phase{namespace=\"microservice-app\"} == 1",
+          "format": "table",
+          "instant": true
+        }
+      ]
+    }
+  ]
+}

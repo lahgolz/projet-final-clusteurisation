@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test contre un déploiement Kubernetes réel (namespace microservice-app).
-# Utilise "kubectl port-forward" (tunnel via l'API server) plutôt qu'une exposition publique :
-# fonctionne aussi bien depuis un runner GitHub-hosted que depuis un poste local, quel que soit
-# le cluster (kind/k3d/minikube/distant), du moment que KUBECONFIG pointe dessus.
-#
-# Usage : KUBECONFIG=... bash scripts/smoke-test-k8s.sh
 
 set -euo pipefail
 

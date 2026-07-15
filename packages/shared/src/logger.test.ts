@@ -24,8 +24,8 @@ describe('logger', () => {
 
     logHttpRequest(logger, {
       method: 'GET',
-      route: '/api/catalogue/products',
-      status: 200,
+      path: '/api/catalogue/products',
+      statusCode: 200,
       durationMs: 12,
       requestId: 'req-1',
     });
@@ -34,8 +34,8 @@ describe('logger', () => {
     const parsed = JSON.parse(chunks[0]!);
     expect(parsed).toMatchObject({
       method: 'GET',
-      route: '/api/catalogue/products',
-      status: 200,
+      path: '/api/catalogue/products',
+      statusCode: 200,
       durationMs: 12,
       requestId: 'req-1',
     });
