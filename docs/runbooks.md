@@ -36,12 +36,12 @@ non jouée (`db-migrate` en échec avant le démarrage de l'API), image avec un 
 
 ### Décision
 
-| Cause identifiée                              | Action                                                                 |
-| ---------------------------------------------- | ----------------------------------------------------------------------- |
-| `OOMKilled` (`describe pod` → `Reason: OOMKilled`) | Augmenter `resources.limits.memory` ou corriger une fuite mémoire     |
-| Erreur de configuration (Secret/ConfigMap)     | Corriger la valeur, ré-appliquer, `kubectl rollout restart`             |
-| Régression applicative après déploiement       | Rollback (§ ci-dessous)                                                 |
-| Dépendance indisponible (Postgres, `catalogue`) | Traiter d'abord le runbook « base indisponible » ou vérifier `orders`→`catalogue` |
+| Cause identifiée                                   | Action                                                                            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `OOMKilled` (`describe pod` → `Reason: OOMKilled`) | Augmenter `resources.limits.memory` ou corriger une fuite mémoire                 |
+| Erreur de configuration (Secret/ConfigMap)         | Corriger la valeur, ré-appliquer, `kubectl rollout restart`                       |
+| Régression applicative après déploiement           | Rollback (§ ci-dessous)                                                           |
+| Dépendance indisponible (Postgres, `catalogue`)    | Traiter d'abord le runbook « base indisponible » ou vérifier `orders`→`catalogue` |
 
 ### Correction / rollback
 
@@ -89,12 +89,12 @@ les deux services pour situer où l'erreur apparaît réellement.
 
 ### Décision
 
-| Observation                                          | Action                                                              |
-| ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Erreurs concentrées sur un seul service, suite à un déploiement | Rollback de ce service                                              |
-| Erreurs venant de `orders` lors de l'appel à `catalogue` | Vérifier la santé de `catalogue` et la NetworkPolicy `allow-orders-to-catalogue-egress` |
-| 5xx corrélés à une erreur PostgreSQL dans les logs     | Traiter le runbook « base indisponible »                             |
-| Pas de déploiement récent, pic isolé                   | Vérifier une charge anormale (§ test de charge, `docs/performance.md`) |
+| Observation                                                     | Action                                                                                  |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Erreurs concentrées sur un seul service, suite à un déploiement | Rollback de ce service                                                                  |
+| Erreurs venant de `orders` lors de l'appel à `catalogue`        | Vérifier la santé de `catalogue` et la NetworkPolicy `allow-orders-to-catalogue-egress` |
+| 5xx corrélés à une erreur PostgreSQL dans les logs              | Traiter le runbook « base indisponible »                                                |
+| Pas de déploiement récent, pic isolé                            | Vérifier une charge anormale (§ test de charge, `docs/performance.md`)                  |
 
 ### Correction / rollback
 
@@ -136,12 +136,12 @@ de 15-30 s ; une corruption du PVC est irrécupérable sans backup.
 
 ### Décision
 
-| Cause                                              | Action                                                                 |
-| ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| Pod en cours de redémarrage normal (`Running` bientôt) | Attendre (`kubectl wait --for=condition=ready`), pas d'action corrective  |
-| `CrashLoopBackOff` sur `postgres-0`                 | `describe`/`logs --previous` : erreur de configuration (Secret) ou données corrompues |
-| PVC perdu/corrompu, base illisible                  | **Restauration depuis la dernière sauvegarde** (§ 5)                    |
-| Nœud indisponible (cluster multi-nœuds)             | Le StatefulSet reprogramme `postgres-0` sur un autre nœud dès que possible ; le PVC doit être accessible depuis ce nœud |
+| Cause                                                  | Action                                                                                                                  |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Pod en cours de redémarrage normal (`Running` bientôt) | Attendre (`kubectl wait --for=condition=ready`), pas d'action corrective                                                |
+| `CrashLoopBackOff` sur `postgres-0`                    | `describe`/`logs --previous` : erreur de configuration (Secret) ou données corrompues                                   |
+| PVC perdu/corrompu, base illisible                     | **Restauration depuis la dernière sauvegarde** (§ 5)                                                                    |
+| Nœud indisponible (cluster multi-nœuds)                | Le StatefulSet reprogramme `postgres-0` sur un autre nœud dès que possible ; le PVC doit être accessible depuis ce nœud |
 
 ### Correction
 
@@ -184,11 +184,11 @@ le nouveau pod n'est pas `Ready`.
 
 ### Décision
 
-| Cause                                    | Action                                                        |
-| ------------------------------------------- | ----------------------------------------------------------------- |
-| `ImagePullBackOff` (tag inexistant/typo)  | Corriger le tag d'image, ré-appliquer                          |
-| Nouveau pod jamais `Ready` (bug applicatif) | **Rollback immédiat**, ne pas attendre                        |
-| `Pending` (ressources insuffisantes)      | Vérifier la capacité du cluster (`kubectl describe node`), ajuster `requests` ou scaler le cluster |
+| Cause                                       | Action                                                                                             |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `ImagePullBackOff` (tag inexistant/typo)    | Corriger le tag d'image, ré-appliquer                                                              |
+| Nouveau pod jamais `Ready` (bug applicatif) | **Rollback immédiat**, ne pas attendre                                                             |
+| `Pending` (ressources insuffisantes)        | Vérifier la capacité du cluster (`kubectl describe node`), ajuster `requests` ou scaler le cluster |
 
 ### Correction / rollback
 
@@ -230,11 +230,11 @@ kubectl -n $NS run list-backups --rm -i --restart=Never \
 
 ### Décision
 
-| Situation                                             | Action                                                    |
-| -------------------------------------------------------- | -------------------------------------------------------------- |
-| Sauvegarde récente disponible, RPO acceptable          | Restaurer la plus récente (`RESTORE_FILE=latest`, comportement par défaut) |
-| Besoin d'un point de restauration précis (avant une opération connue) | Restaurer un fichier daté précis (voir `docs/backup-restore.md`, § 3) |
-| Aucune sauvegarde exploitable                          | Incident majeur : documenter la perte de données, corriger la cause racine (alerte `PostgresBackupJobFailed` aurait dû prévenir ce cas) |
+| Situation                                                             | Action                                                                                                                                  |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Sauvegarde récente disponible, RPO acceptable                         | Restaurer la plus récente (`RESTORE_FILE=latest`, comportement par défaut)                                                              |
+| Besoin d'un point de restauration précis (avant une opération connue) | Restaurer un fichier daté précis (voir `docs/backup-restore.md`, § 3)                                                                   |
+| Aucune sauvegarde exploitable                                         | Incident majeur : documenter la perte de données, corriger la cause racine (alerte `PostgresBackupJobFailed` aurait dû prévenir ce cas) |
 
 ### Correction
 

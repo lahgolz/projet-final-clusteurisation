@@ -42,41 +42,41 @@ un scale-up.
 
 ### Run A — 30 VUs (30s montée / 90s palier / 30s descente)
 
-| Métrique                     | Valeur mesurée                          |
-| ------------------------------ | ------------------------------------------ |
-| Débit HTTP                   | 90,2 req/s (13 539 requêtes)              |
-| Itérations                   | 53,1/s (7 966 itérations)                 |
-| Latence `http_req_duration`  | avg 1,40 ms · p90 5,29 ms · **p95 5,72 ms** · max 92,7 ms |
-| Latence catalogue (list+détail) | avg 0,51 ms · p95 0,85 ms               |
-| Latence création de commande | avg 5,59 ms · p95 6,82 ms                 |
-| Taux d'erreur                | **0,00 %** (0/13 539)                     |
-| CPU catalogue (pic)           | 52 % de la requête (52 m / 100 m)          |
-| HPA catalogue                | **aucune réaction** (reste à 1 replica)    |
-| Connexions PostgreSQL (pic)   | 12                                          |
+| Métrique                        | Valeur mesurée                                            |
+| ------------------------------- | --------------------------------------------------------- |
+| Débit HTTP                      | 90,2 req/s (13 539 requêtes)                              |
+| Itérations                      | 53,1/s (7 966 itérations)                                 |
+| Latence `http_req_duration`     | avg 1,40 ms · p90 5,29 ms · **p95 5,72 ms** · max 92,7 ms |
+| Latence catalogue (list+détail) | avg 0,51 ms · p95 0,85 ms                                 |
+| Latence création de commande    | avg 5,59 ms · p95 6,82 ms                                 |
+| Taux d'erreur                   | **0,00 %** (0/13 539)                                     |
+| CPU catalogue (pic)             | 52 % de la requête (52 m / 100 m)                         |
+| HPA catalogue                   | **aucune réaction** (reste à 1 replica)                   |
+| Connexions PostgreSQL (pic)     | 12                                                        |
 
 ### Run B — 80 VUs (30s montée / 120s palier / 30s descente)
 
-| Métrique                     | Valeur mesurée                          |
-| ------------------------------ | ------------------------------------------ |
-| Débit HTTP                   | 250,4 req/s (45 158 requêtes)             |
-| Itérations                   | 147,1/s (26 522 itérations)               |
-| Latence `http_req_duration`  | avg 1,21 ms · p90 4,69 ms · **p95 5,06 ms** · max 43,8 ms |
-| Latence catalogue (list+détail) | avg 0,42 ms · p95 0,68 ms               |
-| Latence création de commande | avg 4,93 ms · p95 6,21 ms                 |
-| Taux d'erreur                | **0,00 %** (0/45 158)                     |
-| CPU catalogue (pic)           | **89 %** de la requête (89 m / 100 m)      |
-| HPA catalogue                | **scale-up 1 → 2 replicas**                |
-| Connexions PostgreSQL (pic)   | 16                                          |
+| Métrique                        | Valeur mesurée                                            |
+| ------------------------------- | --------------------------------------------------------- |
+| Débit HTTP                      | 250,4 req/s (45 158 requêtes)                             |
+| Itérations                      | 147,1/s (26 522 itérations)                               |
+| Latence `http_req_duration`     | avg 1,21 ms · p90 4,69 ms · **p95 5,06 ms** · max 43,8 ms |
+| Latence catalogue (list+détail) | avg 0,42 ms · p95 0,68 ms                                 |
+| Latence création de commande    | avg 4,93 ms · p95 6,21 ms                                 |
+| Taux d'erreur                   | **0,00 %** (0/45 158)                                     |
+| CPU catalogue (pic)             | **89 %** de la requête (89 m / 100 m)                     |
+| HPA catalogue                   | **scale-up 1 → 2 replicas**                               |
+| Connexions PostgreSQL (pic)     | 16                                                        |
 
 ### Chronologie du scale-up (Run B)
 
-| Heure    | CPU catalogue | Replicas (actuel/désiré) | Événement                                    |
-| -------- | -------------- | -------------------------- | ----------------------------------------------- |
-| 19:33:10 | 76 %           | 1 / 1                     | Seuil de 70 % dépassé                          |
-| 19:34:14 | 89 %           | 1 / 2                     | HPA calcule `desiredReplicas = 2`             |
-| 19:34:30 | 89 %           | 2 / 2                     | Second pod `Running`+`Ready`                    |
-| 19:35:03 → 19:36:34 | 89 % → 63 % → 2 % | 2 / 2 | Fin du palier, charge retombée, CPU redescend  |
-| (non observé, hors fenêtre de mesure) | — | 2 → 1 (attendu) | Stabilisation de descente 5 min (comportement documenté dans [`docs/resilience.md`](resilience.md)) |
+| Heure                                 | CPU catalogue     | Replicas (actuel/désiré) | Événement                                                                                           |
+| ------------------------------------- | ----------------- | ------------------------ | --------------------------------------------------------------------------------------------------- |
+| 19:33:10                              | 76 %              | 1 / 1                    | Seuil de 70 % dépassé                                                                               |
+| 19:34:14                              | 89 %              | 1 / 2                    | HPA calcule `desiredReplicas = 2`                                                                   |
+| 19:34:30                              | 89 %              | 2 / 2                    | Second pod `Running`+`Ready`                                                                        |
+| 19:35:03 → 19:36:34                   | 89 % → 63 % → 2 % | 2 / 2                    | Fin du palier, charge retombée, CPU redescend                                                       |
+| (non observé, hors fenêtre de mesure) | —                 | 2 → 1 (attendu)          | Stabilisation de descente 5 min (comportement documenté dans [`docs/resilience.md`](resilience.md)) |
 
 Délai observé entre le franchissement du seuil et le pod supplémentaire `Ready` : **~80 s**,
 cohérent avec la fenêtre de 15-60 s documentée dans `docs/resilience.md` (l'écart s'explique par la
@@ -116,13 +116,13 @@ une panne mais un déclenchement d'autoscaling** :
 
 ## 4. Recommandations
 
-| Constat                                                    | Action proposée                                                                                       |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Cible HPA basée sur une `requests.cpu` très faible (100 m)   | Reprofiler `catalogue`/`orders` sous charge représentative de production avant de fixer `requests.cpu` |
-| `orders` non autoscalé                                       | Ajouter un second `HorizontalPodAutoscaler` sur `orders`, surtout si le trafic devient plus écriture-intensif |
-| Scaling basé uniquement sur le CPU                           | Envisager une métrique custom (p95 de latence via Prometheus Adapter) pour aligner le scaling sur l'expérience utilisateur plutôt que sur la seule consommation CPU |
-| Charge de rupture non atteinte sur ce cluster de démonstration | Rejouer `scripts/load-test-k6.sh` avec un `PEAK_VUS` plus élevé (150-300) sur un cluster multi-nœuds pour identifier la vraie limite de débit/latence |
-| Aucune alerte sur la latence agrégée                          | Une règle Prometheus sur `http_request_duration_seconds` (p95) compléterait `HighHttp5xxRate` déjà présente ([`k8s/observability/alerts.yaml`](../k8s/observability/alerts.yaml)) pour détecter une dégradation de latence sans erreurs HTTP |
+| Constat                                                        | Action proposée                                                                                                                                                                                                                              |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cible HPA basée sur une `requests.cpu` très faible (100 m)     | Reprofiler `catalogue`/`orders` sous charge représentative de production avant de fixer `requests.cpu`                                                                                                                                       |
+| `orders` non autoscalé                                         | Ajouter un second `HorizontalPodAutoscaler` sur `orders`, surtout si le trafic devient plus écriture-intensif                                                                                                                                |
+| Scaling basé uniquement sur le CPU                             | Envisager une métrique custom (p95 de latence via Prometheus Adapter) pour aligner le scaling sur l'expérience utilisateur plutôt que sur la seule consommation CPU                                                                          |
+| Charge de rupture non atteinte sur ce cluster de démonstration | Rejouer `scripts/load-test-k6.sh` avec un `PEAK_VUS` plus élevé (150-300) sur un cluster multi-nœuds pour identifier la vraie limite de débit/latence                                                                                        |
+| Aucune alerte sur la latence agrégée                           | Une règle Prometheus sur `http_request_duration_seconds` (p95) compléterait `HighHttp5xxRate` déjà présente ([`k8s/observability/alerts.yaml`](../k8s/observability/alerts.yaml)) pour détecter une dégradation de latence sans erreurs HTTP |
 
 ---
 

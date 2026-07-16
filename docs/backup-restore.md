@@ -38,7 +38,7 @@ Manifest : [`k8s/base/backup.yaml`](../k8s/base/backup.yaml).
   automatiquement** (une restauration écrase les données courantes). Se déclenche uniquement à la
   demande via `kubectl create job --from=cronjob/postgres-restore`.
 - Les deux CronJobs partagent le ServiceAccount `db-backup` (`automountServiceAccountToken:
-  false`) et l'image `postgres:16.6-alpine3.21` déjà utilisée par le StatefulSet (mêmes binaires
+false`) et l'image `postgres:16.6-alpine3.21` déjà utilisée par le StatefulSet (mêmes binaires
   `pg_dump`/`psql`, aucune image supplémentaire à maintenir).
 - `securityContext` non-root (`runAsUser: 1000`), `readOnlyRootFilesystem: true`, capabilities
   droppées : le script (monté en ConfigMap `postgres-backup-scripts`, lecture seule) n'écrit que
@@ -49,11 +49,11 @@ Manifest : [`k8s/base/backup.yaml`](../k8s/base/backup.yaml).
 L'énoncé recommande un stockage objet (S3/GCS/MinIO) en priorité. Choix fait ici : **PVC de
 démonstration**, limite documentée explicitement :
 
-| Limite du PVC de démonstration                          | Impact                                                             |
-| --------------------------------------------------------- | ------------------------------------------------------------------- |
-| `ReadWriteOnce`, provisioner `hostPath`-like (minikube/kind) | Le volume est local au nœud unique ; ne survit pas à une panne de nœud |
-| Pas de réplication hors cluster                            | Une perte du PVC (corruption, suppression accidentelle) emporte aussi les sauvegardes |
-| Pas de chiffrement dédié au repos                          | Dépend uniquement du chiffrement (éventuel) du disque sous-jacent   |
+| Limite du PVC de démonstration                               | Impact                                                                                |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `ReadWriteOnce`, provisioner `hostPath`-like (minikube/kind) | Le volume est local au nœud unique ; ne survit pas à une panne de nœud                |
+| Pas de réplication hors cluster                              | Une perte du PVC (corruption, suppression accidentelle) emporte aussi les sauvegardes |
+| Pas de chiffrement dédié au repos                            | Dépend uniquement du chiffrement (éventuel) du disque sous-jacent                     |
 
 **Recommandation production** : un job/CronJob supplémentaire (ou un sidecar `mc`/`aws s3 cp`)
 poussant chaque `.sql.gz` vers un bucket S3/GCS/MinIO avec versioning et réplication inter-région,
@@ -160,10 +160,10 @@ Déroulé validé sur le cluster minikube local :
 
 ### RPO et RTO mesurés
 
-| Mesure  | Valeur mesurée (démo)                    | Explication                                                                                                  |
-| ------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **RPO** | jusqu'à 24 h (planification `0 3 * * *`) | Le RPO est borné par l'intervalle entre deux sauvegardes planifiées. Un backup à la demande avant une opération risquée ramène le RPO à ~0. Pour un RPO plus strict en continu, augmenter la fréquence (ex. `0 * * * *` toutes les heures) — compromis avec l'espace occupé sur le PVC. |
-| **RTO** | **4 s** (mesuré, `T0` déclenchement du Job -> `T1` `Complete`) | Mesuré sur une base de démonstration (5 produits + fixtures). Le RTO croît avec la taille du dump : sur un jeu de données de production, prévoir un test de restauration à l'échelle réelle plutôt que d'extrapoler cette valeur. |
+| Mesure  | Valeur mesurée (démo)                                          | Explication                                                                                                                                                                                                                                                                             |
+| ------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **RPO** | jusqu'à 24 h (planification `0 3 * * *`)                       | Le RPO est borné par l'intervalle entre deux sauvegardes planifiées. Un backup à la demande avant une opération risquée ramène le RPO à ~0. Pour un RPO plus strict en continu, augmenter la fréquence (ex. `0 * * * *` toutes les heures) — compromis avec l'espace occupé sur le PVC. |
+| **RTO** | **4 s** (mesuré, `T0` déclenchement du Job -> `T1` `Complete`) | Mesuré sur une base de démonstration (5 produits + fixtures). Le RTO croît avec la taille du dump : sur un jeu de données de production, prévoir un test de restauration à l'échelle réelle plutôt que d'extrapoler cette valeur.                                                       |
 
 **Limite explicite** : ces RPO/RTO caractérisent l'environnement de démonstration (base de
 quelques Ko), pas un engagement de production. Pour un chiffrage réel, il faut rejouer ce test sur

@@ -201,26 +201,26 @@ minikube delete     # supprime entièrement le cluster local
 
 ## Versions d'outils testées
 
-| Outil           | Version testée   |
-| --------------- | ----------------- |
-| Node.js         | v24.12.0 (`>=20` requis) |
-| pnpm            | 10.28.2            |
-| Docker          | 29.6.1             |
-| Docker Compose  | v5.3.1             |
-| kubectl         | v1.36.2 (Kustomize v5.8.1 intégré) |
-| minikube        | v1.38.1            |
-| Helm            | v3.21.3            |
-| Trivy (CI)      | via `aquasecurity/trivy-action@v0.36.0` |
-| gitleaks (CI)   | v8.21.2            |
+| Outil          | Version testée                          |
+| -------------- | --------------------------------------- |
+| Node.js        | v24.12.0 (`>=20` requis)                |
+| pnpm           | 10.28.2                                 |
+| Docker         | 29.6.1                                  |
+| Docker Compose | v5.3.1                                  |
+| kubectl        | v1.36.2 (Kustomize v5.8.1 intégré)      |
+| minikube       | v1.38.1                                 |
+| Helm           | v3.21.3                                 |
+| Trivy (CI)     | via `aquasecurity/trivy-action@v0.36.0` |
+| gitleaks (CI)  | v8.21.2                                 |
 
 ## Dépannage
 
-| Symptôme                                             | Cause probable / solution                                                                                                                                          |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `kubectl -n microservice-app get hpa` reste `<unknown>` | `metrics-server` absent : `minikube addons enable metrics-server`                                                                                              |
-| Ingress renvoie 404 pour tout                          | Host manquant : ajoutez `<minikube ip> microservice-app.local` à `/etc/hosts`, ou envoyez l'en-tête `Host` explicitement avec `curl`                             |
-| Pods `ImagePullBackOff` sur l'overlay `dev`            | Images construites hors du daemon Docker vu par le cluster : reconstruire après `eval $(minikube docker-env)` (minikube) ou `kind load docker-image` (kind)     |
-| `job/db-migrate` ou `job/db-seed` reste `Pending`      | `Secret microservice-app-db` absent ou mal formé : vérifier `k8s/overlays/*/secret.env` (copié depuis `secret.env.example`, `DATABASE_URL` cohérent avec `POSTGRES_PASSWORD`) |
-| Tests d'intégration HTTP `skipped`                     | Comportement attendu sans base de test : `pnpm dev:db:up` puis relancer `pnpm test`                                                                              |
+| Symptôme                                                | Cause probable / solution                                                                                                                                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `kubectl -n microservice-app get hpa` reste `<unknown>` | `metrics-server` absent : `minikube addons enable metrics-server`                                                                                                                                |
+| Ingress renvoie 404 pour tout                           | Host manquant : ajoutez `<minikube ip> microservice-app.local` à `/etc/hosts`, ou envoyez l'en-tête `Host` explicitement avec `curl`                                                             |
+| Pods `ImagePullBackOff` sur l'overlay `dev`             | Images construites hors du daemon Docker vu par le cluster : reconstruire après `eval $(minikube docker-env)` (minikube) ou `kind load docker-image` (kind)                                      |
+| `job/db-migrate` ou `job/db-seed` reste `Pending`       | `Secret microservice-app-db` absent ou mal formé : vérifier `k8s/overlays/*/secret.env` (copié depuis `secret.env.example`, `DATABASE_URL` cohérent avec `POSTGRES_PASSWORD`)                    |
+| Tests d'intégration HTTP `skipped`                      | Comportement attendu sans base de test : `pnpm dev:db:up` puis relancer `pnpm test`                                                                                                              |
 | CronJob `postgres-backup` en `Error` transitoire        | Résolution DNS du Service `postgres` pas encore prête juste après un (re)démarrage du cluster ; le Job retente automatiquement (`backoffLimit`), vérifier `kubectl -n microservice-app get jobs` |
-| `NetworkPolicy` ne bloque aucun flux                    | CNI par défaut de minikube/kind sans support `NetworkPolicy` : limite documentée dans [`docs/security.md`](./docs/security.md), utiliser Calico/Cilium pour un test réel |
+| `NetworkPolicy` ne bloque aucun flux                    | CNI par défaut de minikube/kind sans support `NetworkPolicy` : limite documentée dans [`docs/security.md`](./docs/security.md), utiliser Calico/Cilium pour un test réel                         |
