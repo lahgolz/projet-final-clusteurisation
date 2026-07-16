@@ -9,6 +9,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secret-scan:
+    name: Scan de secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scanner l'historique git et l'arbre de travail
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" zricethezav/gitleaks:v8.21.2 \
+            detect --source /repo --redact --exit-code 1
+
+  manifest-checks:
+    name: Manifests Kubernetes (pas de tag "latest")
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Interdire le tag "latest" sur les images des manifests
+        run: |
+          if grep -RnE '^\s*(image|newTag)\s*:\s*("?\S*:)?latest"?\s*$' k8s/; then
+            echo "::error::Tag d'image 'latest' interdit dans les manifests Kubernetes (k8s/)."
+            exit 1
+          fi
+          echo "OK: aucun tag 'latest' trouvé dans k8s/."
+
   lint:
     name: Lint & format
     runs-on: ubuntu-latest

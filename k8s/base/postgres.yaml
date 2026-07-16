@@ -43,7 +43,7 @@ spec:
         app.kubernetes.io/part-of: microservice-app
         app.kubernetes.io/version: "16.6"
     spec:
-      serviceAccountName: microservice-app
+      serviceAccountName: postgres
       terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
@@ -60,6 +60,7 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
+            readOnlyRootFilesystem: true
           ports:
             - name: postgres
               containerPort: 5432
@@ -101,6 +102,15 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data

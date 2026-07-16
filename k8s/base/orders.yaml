@@ -46,7 +46,7 @@ spec:
         app.kubernetes.io/part-of: microservice-app
         app.kubernetes.io/version: "0.1.0"
     spec:
-      serviceAccountName: microservice-app
+      serviceAccountName: orders
       terminationGracePeriodSeconds: 20
       securityContext:
         runAsNonRoot: true

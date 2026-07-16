@@ -4,7 +4,6 @@ metadata:
   name: db-migrate
   namespace: microservice-app
   annotations:
-    # GitOps tools can use this ordering hint; kubectl users run this job before the apps.
     argocd.argoproj.io/sync-wave: "1"
 spec:
   backoffLimit: 5
@@ -16,7 +15,7 @@ spec:
         app.kubernetes.io/part-of: microservice-app
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: microservice-app
+      serviceAccountName: db-jobs
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -27,6 +26,8 @@ spec:
           image: ghcr.io/your-org/microservice-app-db-tools:replace-me
           args: ["migrate:up"]
           env:
+            - name: HOME
+              value: /tmp
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -43,6 +44,13 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -61,7 +69,7 @@ spec:
         app.kubernetes.io/part-of: microservice-app
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: microservice-app
+      serviceAccountName: db-jobs
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -72,6 +80,8 @@ spec:
           image: ghcr.io/your-org/microservice-app-db-tools:replace-me
           args: ["seed"]
           env:
+            - name: HOME
+              value: /tmp
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -88,3 +98,10 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
