@@ -55,6 +55,22 @@ spec:
               Consulter kubectl logs --previous et kubectl describe pod pour identifier la cause
               (erreur de configuration, dépendance indisponible, crash applicatif).
 
+        - alert: PostgresBackupJobFailed
+          expr: kube_job_status_failed{namespace="microservice-app", job_name=~"postgres-backup-.*"} > 0
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Le Job de sauvegarde PostgreSQL {{ $labels.job_name }} a échoué"
+            description: >-
+              Le CronJob postgres-backup a produit un Job en échec ({{ $labels.job_name }}) :
+              aucune sauvegarde valide n'a été produite pour ce cycle, le RPO se dégrade
+              silencieusement tant que la cause n'est pas corrigée.
+            action: >-
+              Consulter kubectl logs job/{{ $labels.job_name }} et kubectl describe job (espace
+              disque du PVC postgres-backup, connectivité vers postgres:5432) ; relancer un backup
+              à la demande une fois la cause corrigée (voir docs/backup-restore.md).
+
         - alert: PodMemoryNearLimit
           expr: |
             container_memory_working_set_bytes{namespace="microservice-app", container!="", container!="POD"}

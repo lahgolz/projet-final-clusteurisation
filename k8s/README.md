@@ -7,7 +7,10 @@ Ce document couvre le déploiement manuel. Pour le déploiement automatisé (CI/
 build/scan/push des images, secrets à configurer, rollback), voir
 [`docs/ci-cd.md`](../docs/ci-cd.md). Pour les logs, métriques, dashboards et l'alerting
 (Prometheus/Grafana installés séparément via Helm, manifests dans `k8s/observability/`), voir
-[`docs/observability.md`](../docs/observability.md).
+[`docs/observability.md`](../docs/observability.md). Pour la sauvegarde/restauration PostgreSQL
+(`k8s/base/backup.yaml`), le test de charge k6 (`k8s/load-test/`) et les runbooks d'incident, voir
+[`docs/backup-restore.md`](../docs/backup-restore.md), [`docs/performance.md`](../docs/performance.md)
+et [`docs/runbooks.md`](../docs/runbooks.md).
 
 ## Prérequis
 

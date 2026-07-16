@@ -3,7 +3,7 @@
 ## Périmètre
 
 Ce document couvre le moindre privilège (ServiceAccounts/RBAC), le Pod Security des workloads,
-l'isolation réseau (NetworkPolicy) et la chaîne d'approvisionnement (scan d'images, SBOM, secrets,
+l'isolation réseau (NetworkPolicy) et la chaîne d'approvisionnement (scan d'images, secrets,
 tags immuables). Vérifié en conditions réelles sur un cluster **minikube** local (namespace
 `microservice-app`, overlay `dev`), le 2026-07-15.
 
@@ -176,13 +176,6 @@ $ trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 catalogue:local
 Total: 0 (CRITICAL: 0)
 # exit code 0
 ```
-
-### SBOM
-
-`cd.yml` / `build-and-push` génère un SBOM CycloneDX par image (`aquasecurity/trivy-action`,
-`format: cyclonedx`) et le publie comme artefact du run (rétention 90 jours) — un par composant
-(`catalogue`, `orders`, `frontend`, `db-tools`). Validé localement : 288 composants recensés pour
-l'image `catalogue`.
 
 ### Images de base épinglées
 

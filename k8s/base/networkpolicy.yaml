@@ -103,7 +103,7 @@ spec:
             matchExpressions:
               - key: app.kubernetes.io/name
                 operator: In
-                values: [catalogue, orders, db-migrate, db-seed]
+                values: [catalogue, orders, db-migrate, db-seed, postgres-backup, postgres-restore]
       ports:
         - protocol: TCP
           port: 5432
@@ -160,7 +160,7 @@ spec:
     matchExpressions:
       - key: app.kubernetes.io/name
         operator: In
-        values: [catalogue, orders, db-migrate, db-seed]
+        values: [catalogue, orders, db-migrate, db-seed, postgres-backup, postgres-restore]
   policyTypes: [Egress]
   egress:
     - to:

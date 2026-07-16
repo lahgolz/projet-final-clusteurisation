@@ -1,0 +1,45 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-k6-load-test-to-apis
+  namespace: microservice-app
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [catalogue, orders]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: k6-load-test
+      ports:
+        - protocol: TCP
+          port: 4001
+        - protocol: TCP
+          port: 4002
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-k6-load-test-egress
+  namespace: microservice-app
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: k6-load-test
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [catalogue, orders]
+      ports:
+        - protocol: TCP
+          port: 4001
+        - protocol: TCP
+          port: 4002
