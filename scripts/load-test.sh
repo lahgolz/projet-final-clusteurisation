@@ -7,7 +7,7 @@ DURATION="${2:-120}"
 CONCURRENCY="${3:-20}"
 TARGET="${BASE_URL}/api/catalogue/products"
 
-STOP_FILE="$(mktemp)"
+STOP_FILE="$(mktemp -u)"
 
 cleanup() {
   touch "$STOP_FILE"

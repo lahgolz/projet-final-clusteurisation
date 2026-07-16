@@ -45,6 +45,59 @@ flowchart TD
     MIG -->|migrations + seed| PG
 ```
 
+## Schéma global (CI/CD, registre, monitoring, sauvegarde)
+
+Vue complète du cycle de vie, du commit à l'exploitation, avec les composants hors du cluster
+applicatif (pipeline, registre d'images) et les à-côtés opérationnels (monitoring, sauvegarde) :
+
+```mermaid
+flowchart TD
+    Dev["Développeur"] -->|git push| Repo["Dépôt Git (GitHub)"]
+    Repo -->|déclenche| CI["CI : lint, tests, build, scan Trivy/gitleaks"]
+    CI -->|image OK| Registry[("Registre d'images\nghcr.io/your-org/microservice-app-*")]
+    Registry -->|pull| CD["CD : kubectl apply -k overlays/prod, wait rollout, smoke test"]
+
+    User["Utilisateur"] -->|HTTPS| Ingress["Ingress NGINX"]
+
+    subgraph NS["Namespace microservice-app"]
+        FE["frontend"]
+        CAT["catalogue"]
+        ORD["orders"]
+        PG[("PostgreSQL\nStatefulSet + PVC")]
+        BK["CronJob postgres-backup"]
+        BKPVC[("PVC postgres-backup\nstockage de sauvegarde")]
+    end
+
+    subgraph MON["Namespace monitoring"]
+        Prom["Prometheus"]
+        Graf["Grafana"]
+        AM["Alertmanager"]
+    end
+
+    CD -->|déploie| NS
+    Ingress --> FE
+    Ingress --> CAT
+    Ingress --> ORD
+    ORD --> CAT
+    CAT --> PG
+    ORD --> PG
+    BK --> PG
+    BK --> BKPVC
+
+    CAT -.->|/metrics scrapé| Prom
+    ORD -.->|/metrics scrapé| Prom
+    Prom --> Graf
+    Prom --> AM
+```
+
+Correspondance avec les manifests : `Ingress` = [`k8s/base/ingress.yaml`](../k8s/base/ingress.yaml),
+`frontend`/`catalogue`/`orders`/`postgres` = [`k8s/base/`](../k8s/base/) (mêmes noms de
+Deployments/StatefulSet/Services que dans le cluster), `postgres-backup` = CronJob et PVC de
+[`k8s/base/backup.yaml`](../k8s/base/backup.yaml) (voir [`docs/backup-restore.md`](./backup-restore.md)),
+`monitoring` = stack Helm `kube-prometheus-stack` + [`k8s/observability/`](../k8s/observability/)
+(voir [`docs/observability.md`](./observability.md)), pipeline CI/CD = `.github/workflows/ci.yml`
+et `.github/workflows/cd.yml` (voir [`docs/ci-cd.md`](./ci-cd.md)).
+
 ## Composants et responsabilités
 
 - **frontend** : consomme les APIs via des chemins relatifs (`/api/catalogue/...`,
