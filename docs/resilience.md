@@ -1,16 +1,10 @@
 # Résilience et scalabilité
 
-## Périmètre
+Ce document couvre la haute disponibilité et la scalabilité des services stateless (`catalogue`,
+`orders`, `frontend`). PostgreSQL a sa propre section, plus bas, parce que ses limites actuelles
+sont différentes.
 
-Ce document couvre les mécanismes de haute disponibilité et de scalabilité des services stateless
-(`catalogue`, `orders`, `frontend`). La base de données PostgreSQL fait l'objet d'une section
-dédiée expliquant ses limites actuelles.
-
-Environnement de démonstration : cluster **Kind** mono-nœud, overlay `dev`.
-
----
-
-## Architecture de résilience
+Environnement de démo : cluster **Kind** mono-nœud, overlay `dev`.
 
 ```
                     ┌─────────────────────────────────────────┐
@@ -33,109 +27,72 @@ Environnement de démonstration : cluster **Kind** mono-nœud, overlay `dev`.
                     └─────────────────────────────────────────┘
 ```
 
----
+## 1. Autoscaling (HPA)
 
-## 1. Horizontal Pod Autoscaler (HPA)
+| Paramètre      | prod/base              | overlay dev            |
+| -------------- | ---------------------- | ---------------------- |
+| Service ciblé  | `catalogue`            | `catalogue`            |
+| Métrique       | CPU Utilization        | CPU Utilization        |
+| Seuil          | 70 % de `requests.cpu` | 70 % de `requests.cpu` |
+| `minReplicas`  | 2                      | 1                      |
+| `maxReplicas`  | 5                      | 3                      |
+| `requests.cpu` | 100 m                  | 100 m                  |
 
-### Configuration
+Manifest : [`k8s/base/hpa.yaml`](../k8s/base/hpa.yaml). Formule utilisée par Kubernetes :
+`desiredReplicas = ceil(currentReplicas × currentCPU / targetCPU)` - par exemple 2 pods à 130 % de
+la cible donnent `ceil(2 × 1.30) = 3` pods.
 
-| Paramètre         | Valeur (prod/base)     | Valeur (overlay dev)   |
-| ----------------- | ---------------------- | ---------------------- |
-| Service ciblé     | `catalogue`            | `catalogue`            |
-| Métrique          | CPU Utilization        | CPU Utilization        |
-| Seuil             | 70 % de `requests.cpu` | 70 % de `requests.cpu` |
-| `minReplicas`     | 2                      | 1                      |
-| `maxReplicas`     | 5                      | 3                      |
-| `requests.cpu`    | 100 m                  | 100 m                  |
-| CPU cible absolue | 70 m par pod           | 70 m par pod           |
-
-Manifest : [`k8s/base/hpa.yaml`](../k8s/base/hpa.yaml)
-
-### Algorithme de calcul
-
-```
-desiredReplicas = ceil(currentReplicas × currentCPU / targetCPU)
-```
-
-Exemple : 2 pods à 130 % CPU cible -> `ceil(2 × 1.30) = ceil(2.6) = 3 pods`.
-
-### Prérequis
-
-`metrics-server` doit être installé et fonctionnel dans le cluster. Sans lui, le HPA reste en
-état `<unknown>` et ne scale pas.
+Ça a besoin de `metrics-server` dans le cluster ; sans lui, le HPA reste bloqué en `<unknown>` et
+ne scale jamais :
 
 ```bash
-# Vérifier que metrics-server répond
 kubectl -n kube-system get deployment metrics-server
 kubectl top pods -n microservice-app
 ```
 
-### Comportements observés
+Comportement observé : le scale up prend 15 à 60s (2 cycles de scrape pour détecter le
+dépassement), les nouveaux pods sont pris en compte dès qu'ils sont Ready, et le scale down attend
+5 minutes de stabilisation par défaut pour éviter le flapping.
 
-| Phase         | Délai typique | Comportement                                                                                                        |
-| ------------- | ------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Scale up      | 15 – 60 s     | Le HPA détecte le dépassement de seuil après 2 cycles de scrape (15 s chacun) et crée des pods supplémentaires      |
-| Stabilisation | 0 s           | Immédiate dès que les nouveaux pods sont Ready                                                                      |
-| Scale down    | 5 min         | Fenêtre de stabilisation par défaut (`--horizontal-pod-autoscaler-downscale-stabilization`) pour éviter le flapping |
-
-### Déclenchement de la démo
+Pour le voir en action :
 
 ```bash
-# Terminal 1 : observer le HPA en temps réel
+# Terminal 1 : observer le HPA
 kubectl -n microservice-app get hpa -w
 
-# Terminal 2 : générer la charge (20 workers pendant 2 min)
+# Terminal 2 : générer de la charge (20 workers pendant 2 min)
 bash scripts/load-test.sh http://microservice-app.local 120 20
 
 # Terminal 3 : observer les pods
 kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue -w
 ```
 
-Résultat attendu : le nombre de replicas passe de 2 à 3-5 selon la charge, puis redescend à 2
-après 5 minutes de stabilisation.
-
----
+Le nombre de replicas devrait monter de 2 à 3-5 selon la charge, puis redescendre à 2 après les
+5 minutes de stabilisation. Des chiffres réels mesurés avec k6 sont dans
+[`docs/performance.md`](./performance.md).
 
 ## 2. PodDisruptionBudget (PDB)
 
-Manifest : [`k8s/base/pdb.yaml`](../k8s/base/pdb.yaml)
+Manifest : [`k8s/base/pdb.yaml`](../k8s/base/pdb.yaml). `minAvailable: 1` sur `catalogue`,
+`orders` et `frontend` : avec 2 replicas, un drain de nœud ne peut évincer qu'un seul pod à la
+fois.
 
-| Service     | `minAvailable` | Effet avec 2 replicas                                   |
-| ----------- | -------------- | ------------------------------------------------------- |
-| `catalogue` | 1              | Un drain de nœud peut supprimer au plus 1 pod à la fois |
-| `orders`    | 1              | Idem                                                    |
-| `frontend`  | 1              | Idem                                                    |
-
-### Rôle du PDB
-
-Le PDB s'applique **uniquement aux disruptions volontaires** (maintenance planifiée) :
-
-- `kubectl drain <node>`, éviction lors d'une mise à jour de nœud
-- `kubectl delete pod` avec eviction API
-- Mise à l'échelle automatique des nœuds (cluster autoscaler)
-
-Il **ne protège pas** contre les disruptions involontaires (crash OOMKill, panne matérielle).
-
-### Test de validation
+Ça ne joue que sur les **disruptions volontaires** (drain, éviction, scale-down d'un cluster
+autoscaler) - pas sur les crashs ou pannes matérielles, qui ne préviennent personne.
 
 ```bash
-# Avec 2 replicas de catalogue et PDB minAvailable:1
-# Tenter d'éviter un pod, doit respecter le PDB
 kubectl -n microservice-app get pdb catalogue
 
 # Dry-run d'un drain (cluster multi-nœuds uniquement)
 kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data --dry-run=client
 ```
 
----
+## 3. Répartition des replicas (anti-affinité)
 
-## 3. Répartition des replicas (podAntiAffinity)
+Manifests : [`k8s/base/catalogue.yaml`](../k8s/base/catalogue.yaml),
+[`k8s/base/orders.yaml`](../k8s/base/orders.yaml), [`k8s/base/frontend.yaml`](../k8s/base/frontend.yaml).
 
-Manifest : [`k8s/base/catalogue.yaml`](../k8s/base/catalogue.yaml),
-[`k8s/base/orders.yaml`](../k8s/base/orders.yaml),
-[`k8s/base/frontend.yaml`](../k8s/base/frontend.yaml)
-
-Chaque Deployment porte une règle d'**anti-affinité souple** :
+Chaque Deployment porte une règle d'anti-affinité **souple** (`preferred`, pas `required`) :
 
 ```yaml
 affinity:
@@ -149,16 +106,14 @@ affinity:
           topologyKey: kubernetes.io/hostname
 ```
 
-**`preferred`** (et non `required`) : si le cluster ne dispose que d'un seul nœud disponible
-(comme Kind mono-nœud), le scheduler place quand même les pods plutôt que de les bloquer en
-`Pending`. En production multi-nœuds, les deux replicas atterriront sur des nœuds différents,
-limitant l'impact d'une panne matérielle à la moitié du service.
+`preferred` plutôt que `required` : sur un cluster mono-nœud (comme Kind ici), le scheduler place
+quand même les pods au lieu de les bloquer en `Pending`. En production multi-nœuds, les deux
+replicas atterriront sur des nœuds différents, ce qui limite l'impact d'une panne matérielle à la
+moitié du service.
 
----
+## 4. Mise à jour sans interruption (RollingUpdate)
 
-## 4. Stratégie de mise à jour (RollingUpdate)
-
-Tous les Deployments appliquent :
+Tous les Deployments utilisent :
 
 ```yaml
 strategy:
@@ -168,207 +123,90 @@ strategy:
     maxSurge: 1 # un pod supplémentaire créé pendant la transition
 ```
 
-Avec `replicas: 2` :
-
-1. Kubernetes crée le pod v2 -> 3 pods tournent
-2. Le pod v2 passe Ready (readiness probe OK)
-3. Un pod v1 est supprimé -> 2 pods v2
-4. Le second pod v2 est créé, passe Ready, le dernier v1 est supprimé
-
-**Résultat** : zéro interruption de service pendant une mise à jour.
+Avec `replicas: 2`, Kubernetes crée le nouveau pod (3 pods tournent brièvement), attend qu'il soit
+Ready, supprime un ancien pod, puis répète pour le second. Résultat : zéro interruption de
+service pendant une mise à jour.
 
 ```bash
-# Déclencher un rolling restart (simulate un redéploiement)
 kubectl -n microservice-app rollout restart deployment/catalogue
-
-# Suivre la progression
 kubectl -n microservice-app rollout status deployment/catalogue
 
-# Vérifier la disponibilité en continu
+# Vérifier la disponibilité pendant l'opération
 watch -n1 curl -s -o /dev/null -w '%{http_code}' http://microservice-app.local/api/catalogue/products
 ```
 
----
+Vérifié en pratique : tous les codes HTTP restent à `200` pendant tout le rollout (~20-30s avec
+2 replicas).
 
 ## 5. Rollback
 
 ```bash
-# Voir l'historique
 kubectl -n microservice-app rollout history deployment/catalogue
-
-# Revenir à la révision précédente
-kubectl -n microservice-app rollout undo deployment/catalogue
-
-# Revenir à une révision précise
-kubectl -n microservice-app rollout undo deployment/catalogue --to-revision=2
-
-# Vérifier le statut
+kubectl -n microservice-app rollout undo deployment/catalogue                  # révision précédente
+kubectl -n microservice-app rollout undo deployment/catalogue --to-revision=2  # révision précise
 kubectl -n microservice-app rollout status deployment/catalogue
 ```
 
----
-
-## 6. Scénarios de résilience testés
-
-### 6.1 Suppression d'un pod (self-healing)
-
-**Procédure :**
+## 6. Self-healing testé en pratique
 
 ```bash
-# État avant
-kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue
-
-# Supprimer un pod
 POD=$(kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue \
   -o jsonpath='{.items[0].metadata.name}')
 kubectl -n microservice-app delete pod "$POD"
-
-# Observer la recréation
 kubectl -n microservice-app get pods -l app.kubernetes.io/name=catalogue -w
 ```
 
-**Résultats attendus :**
-
-| Mesure                             | Valeur typique                                    |
-| ---------------------------------- | ------------------------------------------------- |
-| Détection de la suppression        | < 1 s                                             |
-| Création du nouveau pod            | < 2 s                                             |
-| Pod en état `Running`              | 5 – 10 s                                          |
-| Pod en état `Ready` (readiness OK) | 10 – 15 s                                         |
-| Erreurs HTTP pendant l'opération   | 0 (grace à `maxUnavailable: 0` et au pod restant) |
-
-Le Service Kubernetes retire immédiatement le pod supprimé de son endpoint, empêchant tout
-routage vers un pod mort. Le second replica continue de servir les requêtes pendant toute la
-durée de la recréation.
-
-### 6.2 HPA sous charge CPU
-
-**Procédure :**
-
-```bash
-# Terminal 1
-kubectl -n microservice-app get hpa catalogue -w
-
-# Terminal 2
-bash scripts/load-test.sh http://microservice-app.local 120 20
-```
-
-**Résultats attendus :**
-
-| Phase            | Temps       | Replicas | CPU moyen   |
-| ---------------- | ----------- | -------- | ----------- |
-| Avant charge     | t=0         | 2        | ~5 %        |
-| Montée en charge | t=30 s      | 2        | 80 – 120 %  |
-| Scale up         | t=45 – 60 s | 3 – 4    | en descente |
-| Stabilisation    | t=90 s      | 3 – 4    | ~60 %       |
-| Fin charge       | t+5 min     | 2        | ~5 %        |
-
-### 6.3 Rolling restart sans interruption
-
-**Procédure :**
-
-```bash
-# Lancer en parallèle une sonde de disponibilité
-while true; do
-  CODE=$(curl -s -o /dev/null -w '%{http_code}' http://microservice-app.local/api/catalogue/products)
-  echo "$(date +%T) HTTP $CODE"
-  sleep 1
-done &
-
-# Déclencher le rolling restart
-kubectl -n microservice-app rollout restart deployment/catalogue
-kubectl -n microservice-app rollout status deployment/catalogue
-```
-
-**Résultat attendu** : tous les codes HTTP restent à `200` pendant toute la durée du rollout
-(~20-30 secondes avec 2 replicas).
-
----
+Le Service retire immédiatement le pod supprimé de ses endpoints (aucun routage vers un pod mort),
+et le second replica continue de servir pendant toute la recréation. Chiffres typiques observés :
+suppression détectée en moins d'1s, nouveau pod créé en moins de 2s, `Running` en 5-10s, `Ready`
+(readiness OK) en 10-15s - zéro erreur HTTP côté client pendant l'opération.
 
 ## 7. Limites de haute disponibilité
 
-### PostgreSQL : absence de HA réelle
+### PostgreSQL n'a pas de vraie HA
 
-**Situation actuelle :** PostgreSQL est déployé en StatefulSet mono-replica (`replicas: 1`) avec
-un PVC `ReadWriteOnce`.
-
-**Ce que cela signifie concrètement :**
+PostgreSQL tourne en StatefulSet mono-replica (`replicas: 1`) avec un PVC `ReadWriteOnce`. Ce que
+ça implique concrètement :
 
 | Scénario                         | Impact                                                |
 | -------------------------------- | ----------------------------------------------------- |
-| Redémarrage du pod postgres      | ~15-30 s d'indisponibilité DB (health checks)         |
+| Redémarrage du pod postgres      | ~15-30s d'indisponibilité DB                          |
 | Panne du nœud portant postgres-0 | Indisponibilité jusqu'au reschedule sur un autre nœud |
 | Corruption du PVC                | Perte de données irrémédiable sans backup             |
 
-**Ce n'est pas de la haute disponibilité.** Un pod unique avec PVC `ReadWriteOnce` ne tolère
-aucune panne sans interruption de service.
+Un pod unique avec PVC `ReadWriteOnce` ne tolère aucune panne sans interruption de service. Pour
+une vraie HA PostgreSQL en production, les options les plus courantes sont
+[**CloudNativePG**](https://cloudnative-pg.io/) (opérateur avec réplication synchrone et failover
+automatique - la plus accessible dans un contexte Kubernetes), Patroni + etcd (plus complexe, plus
+de contrôle), un PostgreSQL managé (RDS, Cloud SQL - délègue tout au fournisseur cloud) ou Crunchy
+Data PGO. Pour cette démo, l'approche mono-replica + PVC est suffisante et documentée comme telle.
 
-### Solutions pour une HA PostgreSQL en production
+### Limites du cluster mono-nœud
 
-| Solution                               | Complexité | Description                                                                                      |
-| -------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------ |
-| **CloudNativePG** (opérateur)          | Moyenne    | Opérateur Kubernetes gérant la réplication synchrone, le failover automatique et les sauvegardes |
-| **Patroni + etcd**                     | Élevée     | Gestionnaire de HA PostgreSQL avec consensus distribué                                           |
-| **PostgreSQL managé** (RDS, Cloud SQL) | Faible     | Délègue la HA au fournisseur cloud, hors cluster K8s                                             |
-| **Crunchy Data PGO**                   | Moyenne    | Opérateur open-source avec réplication et sauvegardes intégrées                                  |
-
-**Recommandation pour ce projet :** En environnement de démonstration, l'approche mono-replica
-avec PVC est suffisante et documentée comme telle. Pour une mise en production réelle, CloudNativePG
-est la solution la plus accessible dans un contexte Kubernetes.
-
-### Limites du cluster Kind mono-nœud
-
-| Limite                                    | Impact sur la démo                                                               |
-| ----------------------------------------- | -------------------------------------------------------------------------------- |
-| Un seul nœud physique                     | Le `kubectl drain` ne peut pas être démontré (le pod doit atterrir quelque part) |
-| Pas de StorageClass avec réplication      | Le PVC est local au nœud                                                         |
-| Ressources partagées avec la machine hôte | Les limites CPU/mémoire peuvent être atteintes plus tôt                          |
-| Anti-affinité ignorée                     | Les deux replicas catalogue atterrissent sur le même nœud                        |
-
-Ces limites sont inhérentes à l'environnement de démonstration local et sont explicitement
-documentées. En production sur un cluster multi-nœuds (GKE, EKS, AKS), elles disparaissent.
-
----
+Un seul nœud physique veut dire : pas de `kubectl drain` démontrable (le pod doit bien atterrir
+quelque part), pas de StorageClass répliquée (le PVC est local au nœud), ressources CPU/mémoire
+partagées avec la machine hôte, et anti-affinité ignorée (les deux replicas finissent sur le même
+nœud). Ces limites disparaissent sur un vrai cluster multi-nœuds (GKE, EKS, AKS).
 
 ## 8. Script de démonstration
 
-Le script [`scripts/resilience-demo.sh`](../scripts/resilience-demo.sh) enchaîne les scénarios
-3 à 7 de manière interactive, avec des pauses entre chaque étape.
+[`scripts/resilience-demo.sh`](../scripts/resilience-demo.sh) enchaîne tous les scénarios
+ci-dessus de façon interactive : état initial, kill d'un pod, charge CPU, PDB, rolling restart,
+rollback.
 
 ```bash
 bash scripts/resilience-demo.sh http://microservice-app.local
 ```
 
-Étapes couvertes :
-
-1. État initial (pods, HPA, PDB)
-2. Kill d'un pod -> self-healing
-3. Charge CPU -> HPA scale-up
-4. PDB -> protection lors d'un drain
-5. Rolling restart -> zéro interruption
-6. Rollback -> retour en arrière
-
----
-
-## 9. Commandes de référence
+## Commandes de référence
 
 ```bash
-# État global de la résilience
 kubectl -n microservice-app get deploy,hpa,pdb
-
-# Surveiller le HPA en temps réel
 kubectl -n microservice-app get hpa -w
-
-# Métriques CPU des pods (nécessite metrics-server)
 kubectl -n microservice-app top pods
-
-# Décrire le HPA pour voir les événements de scaling
 kubectl -n microservice-app describe hpa catalogue
-
-# Voir les événements du namespace (crashs, OOMKill, etc.)
 kubectl -n microservice-app get events --sort-by='.lastTimestamp'
 
-# Tester la disponibilité en continu
 while true; do
   curl -s -o /dev/null -w "$(date +%T) %{http_code}\n" http://microservice-app.local/api/catalogue/products
   sleep 1

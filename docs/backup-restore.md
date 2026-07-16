@@ -1,20 +1,15 @@
 # Sauvegarde et restauration PostgreSQL
 
-## Périmètre
+Ce document couvre la sauvegarde (`pg_dump`), la rétention, la restauration et les RPO/RTO pour la
+base `postgres` du namespace `microservice-app`. Vérifié sur un cluster **minikube** local
+(overlay `dev`).
 
-Ce document couvre la sauvegarde (`pg_dump`), la rétention, la restauration et les RPO/RTO de
-démonstration pour la base `postgres` du namespace `microservice-app`. Vérifié en conditions
-réelles sur un cluster **minikube** local (overlay `dev`), le 2026-07-15.
-
----
-
-## 1. Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────┐        ┌─────────────────────────────┐
 │ CronJob postgres-backup     │        │ CronJob postgres-restore     │
 │ schedule: 0 3 * * *          │        │ suspend: true (jamais auto)  │
-│ concurrencyPolicy: Forbid    │        │ concurrencyPolicy: Forbid     │
 └──────────────┬───────────────┘        └──────────────┬────────────────┘
                │ pg_dump --clean --if-exists            │ gunzip | psql
                ▼                                         ▼
@@ -30,66 +25,41 @@ réelles sur un cluster **minikube** local (overlay `dev`), le 2026-07-15.
 
 Manifest : [`k8s/base/backup.yaml`](../k8s/base/backup.yaml).
 
-- **`postgres-backup`** : `CronJob` planifié, exécute `pg_dump --clean --if-exists --no-owner`
-  vers un fichier temporaire, le compresse (`gzip -9`), l'écrit sur le PVC `postgres-backup` avec
-  un nom horodaté (`<POSTGRES_DB>-<UTC ISO8601 compact>.sql.gz`), puis supprime les fichiers
-  excédant la rétention (`RETENTION_COUNT=7`).
-- **`postgres-restore`** : même PVC, `suspend: true` en permanence — **jamais exécuté
-  automatiquement** (une restauration écrase les données courantes). Se déclenche uniquement à la
+- **`postgres-backup`** (CronJob planifié) : `pg_dump --clean --if-exists --no-owner`, compression
+  gzip, écriture sur le PVC avec un nom horodaté, puis suppression des fichiers au-delà de
+  `RETENTION_COUNT` (7 par défaut).
+- **`postgres-restore`** : même PVC, `suspend: true` en permanence, **jamais exécuté
+  automatiquement** - une restauration écrase les données courantes. Se déclenche uniquement à la
   demande via `kubectl create job --from=cronjob/postgres-restore`.
-- Les deux CronJobs partagent le ServiceAccount `db-backup` (`automountServiceAccountToken:
-false`) et l'image `postgres:16.6-alpine3.21` déjà utilisée par le StatefulSet (mêmes binaires
-  `pg_dump`/`psql`, aucune image supplémentaire à maintenir).
-- `securityContext` non-root (`runAsUser: 1000`), `readOnlyRootFilesystem: true`, capabilities
-  droppées : le script (monté en ConfigMap `postgres-backup-scripts`, lecture seule) n'écrit que
-  sur le PVC et `/tmp` (`emptyDir`).
+- Les deux partagent le ServiceAccount `db-backup` et l'image `postgres:16.6-alpine3.21` déjà
+  utilisée par le StatefulSet (mêmes binaires `pg_dump`/`psql`, rien de plus à maintenir), avec un
+  `securityContext` non-root et lecture seule.
 
 ### Pourquoi un PVC et pas un stockage objet
 
-L'énoncé recommande un stockage objet (S3/GCS/MinIO) en priorité. Choix fait ici : **PVC de
-démonstration**, limite documentée explicitement :
+L'idéal serait un stockage objet (S3/GCS/MinIO). Ici, on utilise un **PVC de démonstration**, avec
+des limites assumées : il est local au nœud (ne survit pas à une panne de nœud), sans réplication
+hors cluster (perdre le PVC emporte aussi les sauvegardes), et sans chiffrement dédié au repos.
 
-| Limite du PVC de démonstration                               | Impact                                                                                |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `ReadWriteOnce`, provisioner `hostPath`-like (minikube/kind) | Le volume est local au nœud unique ; ne survit pas à une panne de nœud                |
-| Pas de réplication hors cluster                              | Une perte du PVC (corruption, suppression accidentelle) emporte aussi les sauvegardes |
-| Pas de chiffrement dédié au repos                            | Dépend uniquement du chiffrement (éventuel) du disque sous-jacent                     |
+En production, l'idée serait d'ajouter un job qui pousse chaque `.sql.gz` vers un bucket S3/GCS/MinIO
+avec versioning, ou d'utiliser un opérateur qui l'intègre nativement (CloudNativePG + Barman par
+exemple). Pas fait par défaut ici pour garder la démo exécutable sans compte cloud.
 
-**Recommandation production** : un job/CronJob supplémentaire (ou un sidecar `mc`/`aws s3 cp`)
-poussant chaque `.sql.gz` vers un bucket S3/GCS/MinIO avec versioning et réplication inter-région,
-ou un opérateur dédié (CloudNativePG intègre nativement des sauvegardes vers stockage objet via
-Barman). Non fait par défaut ici pour garder la démonstration exécutable sans compte cloud.
+## Sauvegarde
 
----
+Le dump utilise `--clean --if-exists`, ce qui le rend **idempotent** : on peut restaurer sans
+avoir à vider la base au préalable, même si le schéma cible existe déjà.
 
-## 2. Sauvegarde
+La rétention se fait par nombre de fichiers (7 par défaut), pas par durée - plus simple à auditer
+sur un volume de démo de taille fixe.
 
-### Contenu du dump
+Le script tourne avec `set -eu` : toute commande en échec (ex. `pg_dump` qui ne joint pas
+PostgreSQL) fait échouer le Job, visible via `kubectl get jobs`/`get cronjob` ou dans les logs. Une
+alerte Prometheus dédiée (`PostgresBackupJobFailed`) se déclenche immédiatement, en criticité
+`critical` : un backup manqué dégrade silencieusement le RPO sans que personne ne le remarque
+avant qu'une restauration soit nécessaire.
 
-`pg_dump --clean --if-exists --no-owner` : dump SQL texte incluant `DROP ... IF EXISTS` avant
-chaque `CREATE`, ce qui rend la restauration **idempotente** même si le schéma cible existe déjà
-(cas du scénario de démonstration : restaurer sans avoir à vider la base au préalable).
-
-### Rétention
-
-Le script conserve les `RETENTION_COUNT` (7 par défaut) fichiers les plus récents sur le PVC et
-supprime les plus anciens à chaque exécution — rétention par nombre de sauvegardes, pas par durée
-(plus simple à auditer sur un volume de démonstration de taille fixe).
-
-### Échec visible
-
-- Le script utilise `set -eu` : toute commande en échec (ex. `pg_dump` ne pouvant joindre
-  PostgreSQL) interrompt le script et fait échouer le Job.
-- Un Job en échec est visible directement : `kubectl -n microservice-app get jobs`,
-  `kubectl -n microservice-app get cronjob postgres-backup` (`lastScheduleTime` avance mais aucun
-  `lastSuccessfulTime` récent), `kubectl -n microservice-app logs job/<nom>`.
-- Alerte Prometheus dédiée `PostgresBackupJobFailed`
-  ([`k8s/observability/alerts.yaml`](../k8s/observability/alerts.yaml)), basée sur
-  `kube_job_status_failed{job_name=~"postgres-backup-.*"}` : déclenchement immédiat (`for: 0m`),
-  criticité `critical`, car un backup manqué dégrade silencieusement le RPO sans qu'aucun
-  utilisateur ne le remarque avant qu'une restauration soit nécessaire.
-
-### Déclenchement manuel (hors planification)
+Déclenchement manuel, hors planification :
 
 ```bash
 kubectl -n microservice-app create job "manual-backup-$(date +%s)" --from=cronjob/postgres-backup
@@ -97,11 +67,9 @@ kubectl -n microservice-app wait --for=condition=complete job/manual-backup-<ts>
 kubectl -n microservice-app logs job/manual-backup-<ts>
 ```
 
----
+## Restauration
 
-## 3. Restauration
-
-### Restaurer la sauvegarde la plus récente (comportement par défaut)
+### La sauvegarde la plus récente (par défaut)
 
 ```bash
 kubectl -n microservice-app create job "restore-manual-$(date +%s)" --from=cronjob/postgres-restore
@@ -109,11 +77,11 @@ kubectl -n microservice-app wait --for=condition=complete job/restore-manual-<ts
 kubectl -n microservice-app logs job/restore-manual-<ts>
 ```
 
-### Restaurer un fichier précis
+### Un fichier précis
 
-Le CronJob fixe `RESTORE_FILE=latest`. Pour cibler un fichier particulier, générer le Job en
-`dry-run`, patcher la variable, puis l'appliquer (le pod template d'un Job est immuable après
-création, donc `kubectl set env job/...` échouerait une fois le pod démarré) :
+Le CronJob fixe `RESTORE_FILE=latest`. Pour cibler un fichier particulier, il faut générer le Job
+en `dry-run`, patcher la variable, puis l'appliquer (le pod template d'un Job est immuable une
+fois créé) :
 
 ```bash
 kubectl -n microservice-app create job restore-manual-precis \
@@ -123,12 +91,9 @@ kubectl apply -f /tmp/restore-job.yaml
 kubectl -n microservice-app wait --for=condition=complete job/restore-manual-precis --timeout=120s
 ```
 
-Lister les sauvegardes disponibles sans déclencher de restauration (pod jetable montant le même
-PVC en lecture seule) :
-
-Le namespace applique le profil Pod Security `restricted` ([`docs/security.md`](security.md)) :
-un pod ad hoc doit donc déclarer le même `securityContext` que les CronJobs, sous peine d'un rejet
-`Forbidden` à la création.
+Pour lister les sauvegardes disponibles sans rien restaurer (pod jetable montant le même PVC en
+lecture seule - le namespace est en profil Pod Security `restricted`, donc ce pod doit déclarer le
+même `securityContext` que les CronJobs) :
 
 ```bash
 kubectl -n microservice-app run list-backups --rm -i --restart=Never \
@@ -136,9 +101,7 @@ kubectl -n microservice-app run list-backups --rm -i --restart=Never \
 {"spec":{"serviceAccountName":"db-backup","securityContext":{"runAsNonRoot":true,"runAsUser":1000,"runAsGroup":1000,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"list","image":"postgres:16.6-alpine3.21","command":["ls","-lh","/backups"],"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"volumeMounts":[{"name":"backups","mountPath":"/backups","readOnly":true}]}],"volumes":[{"name":"backups","persistentVolumeClaim":{"claimName":"postgres-backup"}}]}}'
 ```
 
----
-
-## 4. Test réel effectué
+## Test réel effectué
 
 Script reproductible : [`scripts/backup-restore-demo.sh`](../scripts/backup-restore-demo.sh).
 
@@ -146,46 +109,32 @@ Script reproductible : [`scripts/backup-restore-demo.sh`](../scripts/backup-rest
 bash scripts/backup-restore-demo.sh
 ```
 
-Déroulé validé sur le cluster minikube local :
-
-1. Insertion d'une ligne marqueur dans une table `backup_check` (en plus des données seedées,
-   `products`/`orders`).
-2. Backup à la demande (`manual-backup-<ts>`) : `Complete` en quelques secondes, fichier
-   `<db>-<timestamp>.sql.gz` de 2,4 Ko écrit et listé sur le PVC.
-3. Simulation de perte de données : `DROP TABLE backup_check;` — table absente, confirmé par
-   `\dt backup_check`.
-4. Restauration à la demande (`restore-manual-<ts>`) : `Complete`, logs montrant le rejeu complet
-   du dump (`DROP`/`CREATE TABLE`/`COPY` pour `products`, `orders`, `backup_check`, etc.).
-5. Vérification : la ligne marqueur et les 5 produits seedés sont de nouveau présents.
+Déroulé : insertion d'une ligne marqueur, backup à la demande (`Complete` en quelques secondes,
+fichier de 2,4 Ko écrit sur le PVC), simulation de perte de données (`DROP TABLE`), restauration à
+la demande (`Complete`, logs montrant le rejeu complet du dump), puis vérification que la ligne
+marqueur et les produits seedés sont bien de retour.
 
 ### RPO et RTO mesurés
 
-| Mesure  | Valeur mesurée (démo)                                          | Explication                                                                                                                                                                                                                                                                             |
-| ------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **RPO** | jusqu'à 24 h (planification `0 3 * * *`)                       | Le RPO est borné par l'intervalle entre deux sauvegardes planifiées. Un backup à la demande avant une opération risquée ramène le RPO à ~0. Pour un RPO plus strict en continu, augmenter la fréquence (ex. `0 * * * *` toutes les heures) — compromis avec l'espace occupé sur le PVC. |
-| **RTO** | **4 s** (mesuré, `T0` déclenchement du Job -> `T1` `Complete`) | Mesuré sur une base de démonstration (5 produits + fixtures). Le RTO croît avec la taille du dump : sur un jeu de données de production, prévoir un test de restauration à l'échelle réelle plutôt que d'extrapoler cette valeur.                                                       |
+| Mesure  | Valeur mesurée (démo) | Explication                                                                                                                                    |
+| ------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **RPO** | jusqu'à 24h           | Borné par l'intervalle entre deux sauvegardes planifiées (`0 3 * * *`). Un backup à la demande avant une opération risquée ramène le RPO à ~0. |
+| **RTO** | **4s** mesuré         | Sur une base de démo (5 produits + fixtures). Le RTO croît avec la taille du dump : à prévoir un test à l'échelle réelle en production.        |
 
-**Limite explicite** : ces RPO/RTO caractérisent l'environnement de démonstration (base de
-quelques Ko), pas un engagement de production. Pour un chiffrage réel, il faut rejouer ce test sur
-un volume de données représentatif du futur système en production.
+Ces chiffres caractérisent l'environnement de démo (base de quelques Ko), pas un engagement de
+production - à rejouer sur un volume représentatif avant de s'y fier.
 
----
-
-## 5. Commandes de référence
+## Commandes de référence
 
 ```bash
-# État des CronJobs
 kubectl -n microservice-app get cronjob postgres-backup postgres-restore
-
-# Historique des Jobs de backup/restore
 kubectl -n microservice-app get jobs -l app.kubernetes.io/name=postgres-backup
-kubectl -n microservice-app get jobs -l app.kubernetes.io/name=postgres-restore
 
 # Logs du dernier backup
 kubectl -n microservice-app logs job/$(kubectl -n microservice-app get jobs \
   -l app.kubernetes.io/name=postgres-backup --sort-by=.metadata.creationTimestamp \
   -o jsonpath='{.items[-1].metadata.name}')
 
-# Forcer une exécution immédiate du CronJob planifié (au lieu d'un Job ad-hoc identique)
+# Forcer une exécution immédiate
 kubectl -n microservice-app create job "postgres-backup-now" --from=cronjob/postgres-backup
 ```

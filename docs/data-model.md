@@ -1,6 +1,6 @@
 # Modèle de données
 
-Schéma unique, partagé par `catalogue` (propriétaire de `products`) et `orders` (propriétaire de
+Un seul schéma, partagé par `catalogue` (propriétaire de `products`) et `orders` (propriétaire de
 `orders` et `order_items`). Géré par [`packages/db`](../packages/db) via
 [`node-pg-migrate`](https://github.com/salsita/node-pg-migrate).
 
@@ -80,67 +80,52 @@ erDiagram
 
 Index : `order_items(order_id)`, `order_items(product_id)`, `products(name)`, `orders(created_at)`.
 
-### Choix : montants en centimes entiers
+### Pourquoi des centimes en entier
 
-Les montants (`price_cents`, `total_cents`, `unit_price_cents`) sont stockés en centimes sous
-forme d'`integer`, jamais en `float`/`numeric` flottant. Cela évite les erreurs d'arrondi lors du
-calcul du total et simplifie l'arithmétique côté service (addition d'entiers uniquement). La
-devise (`currency`) est stockée à côté pour rester explicite, même si seul `EUR` est utilisé dans
-le périmètre actuel.
+Les montants (`price_cents`, `total_cents`, `unit_price_cents`) sont stockés en centimes, en
+`integer`, jamais en flottant. Ça évite les erreurs d'arrondi sur le calcul du total et
+simplifie l'arithmétique côté service. La devise est stockée à côté pour rester explicite, même si
+seul `EUR` est utilisé aujourd'hui.
 
-### `unit_price_cents` capturé, pas recalculé
+### Le prix est capturé, pas recalculé
 
 `order_items.unit_price_cents` capture le prix du produit **au moment de la commande** (fourni par
-`catalogue` lors de la validation). Il n'est jamais recalculé après coup : un changement de prix
-ultérieur dans `catalogue` ne doit pas modifier le montant d'une commande déjà passée.
+`catalogue` lors de la validation). Il n'est jamais recalculé ensuite : un changement de prix
+ultérieur ne doit pas modifier le montant d'une commande déjà passée.
 
 ## Migrations
 
-- Outil : `node-pg-migrate`, migrations JavaScript versionnées dans `packages/db/migrations/`,
-  horodatées (`<timestamp>_<nom>.js`), exécutées dans l'ordre lexicographique de leur nom.
-- Ordre d'exécution actuel :
-  1. `1783987200000_init-schema.js`, extension `pgcrypto`, fonction `set_updated_at`, tables
-     `products`, `orders`, `order_items`, index, triggers `updated_at`.
+- Outil : `node-pg-migrate`, migrations JS versionnées dans `packages/db/migrations/`, exécutées
+  dans l'ordre de leur nom horodaté.
 - Commandes :
   - `pnpm db:migrate` -> `node-pg-migrate up`
-  - `pnpm db:rollback` -> `node-pg-migrate down` (annule la dernière migration appliquée)
-  - `pnpm db:seed` -> insère/actualise le jeu de données de démonstration (idempotent, basé sur
-    des UUID fixes avec `ON CONFLICT ... DO UPDATE`)
-- **Exécution en cluster** : les migrations ne doivent jamais être lancées par chaque replica au
-  démarrage (risque de migrations concurrentes). Elles sont exécutées par un `Job` Kubernetes
-  dédié (`db-migrate`), lancé avant le rollout des Deployments applicatifs. En
-  local, elles sont lancées manuellement via `pnpm db:migrate`.
-- **Comportement en cas d'échec** : `node-pg-migrate` exécute chaque migration dans une
-  transaction ; en cas d'erreur, la transaction est annulée et la table `pgmigrations` ne
-  référence pas la migration en échec, donc `pnpm db:migrate` peut être relancé sans laisser la
-  base dans un état intermédiaire. Le Job Kubernetes doit être configuré pour ne pas boucler
-  indéfiniment (`backoffLimit` borné) et son échec doit bloquer le déploiement
-  applicatif suivant.
-- **Compatibilité ascendante (RollingUpdate)** : pendant un déploiement progressif, d'anciens et
-  de nouveaux pods coexistent brièvement sur le même schéma. Règle appliquée : toute migration
-  doit être _additive et non bloquante_ pour l'ancienne version (ajout de colonne nullable ou
-  avec valeur par défaut, ajout de table, ajout d'index `CONCURRENTLY` si besoin en production) ;
-  toute migration destructive (suppression de colonne/table, changement de type incompatible)
-  doit être scindée en plusieurs étapes de déploiement (dépréciation puis suppression), documentée
-  explicitement avant d'être exécutée. Aucune migration destructive n'est prévue dans le périmètre
-  actuel.
+  - `pnpm db:rollback` -> `node-pg-migrate down` (annule la dernière migration)
+  - `pnpm db:seed` -> insère/actualise le jeu de données de démo (idempotent, UUID fixes avec
+    `ON CONFLICT ... DO UPDATE`)
+- **En cluster**, les migrations ne doivent jamais être lancées par chaque replica au démarrage
+  (risque de collision). Elles passent par un `Job` Kubernetes dédié (`db-migrate`), lancé avant
+  le rollout des Deployments. En local, `pnpm db:migrate` suffit.
+- **En cas d'échec**, chaque migration tourne dans sa propre transaction : si elle échoue, elle
+  est annulée et `pgmigrations` ne la référence pas, donc `pnpm db:migrate` peut être relancé sans
+  laisser la base dans un état intermédiaire.
+- **Compatibilité ascendante** : pendant un rolling update, anciens et nouveaux pods coexistent
+  brièvement sur le même schéma. Règle appliquée : une migration doit être additive et non
+  bloquante pour l'ancienne version (colonne nullable ou avec défaut, nouvelle table...). Une
+  migration destructive devrait se faire en plusieurs étapes (dépréciation puis suppression) - pas
+  de cas de ce genre dans le périmètre actuel.
 
 ## Tests
 
 `packages/db/test/migrate.test.ts` applique réellement `up` puis `down` sur une base temporaire
-désignée par `TEST_DATABASE_URL` (jamais une base de production) et vérifie la présence/absence
-des tables attendues. Le test est ignoré (`describe.skip`) si cette variable n'est pas définie,
-pour ne pas bloquer `pnpm test` en l'absence de PostgreSQL disponible.
-
-Procédure locale :
+désignée par `TEST_DATABASE_URL` et vérifie que les tables apparaissent/disparaissent comme
+attendu. Ignoré (`describe.skip`) si cette variable n'est pas définie.
 
 ```bash
 pnpm dev:db:up
 TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/microservice-app pnpm --filter @microservice-app/db test
 ```
 
-## Réinitialisation locale (développement uniquement)
+## Réinitialisation locale (dev uniquement)
 
-`pnpm dev:db:reset` supprime le conteneur PostgreSQL de développement, en recrée un vide, puis
-rejoue migrations et seed. Cette procédure est strictement réservée au développement local : elle
-n'est pas utilisable telle quelle en production (perte de données).
+`pnpm dev:db:reset` supprime le conteneur PostgreSQL de dev, en recrée un vide, puis rejoue
+migrations et seed. Réservé au développement local : ça efface les données.

@@ -14,16 +14,16 @@ secretGenerator:
       - secret.env
 
 images:
-  - name: ghcr.io/your-org/microservice-app-catalogue
+  - name: ghcr.io/lahgolz/microservice-app-catalogue
     newName: microservice-app/catalogue
     newTag: dev
-  - name: ghcr.io/your-org/microservice-app-orders
+  - name: ghcr.io/lahgolz/microservice-app-orders
     newName: microservice-app/orders
     newTag: dev
-  - name: ghcr.io/your-org/microservice-app-frontend
+  - name: ghcr.io/lahgolz/microservice-app-frontend
     newName: microservice-app/frontend
     newTag: dev
-  - name: ghcr.io/your-org/microservice-app-db-tools
+  - name: ghcr.io/lahgolz/microservice-app-db-tools
     newName: microservice-app/db-tools
     newTag: dev
 

@@ -24,7 +24,7 @@ cd "${OVERLAY_DIR}"
 
 for component in catalogue orders frontend db-tools; do
   kustomize edit set image \
-    "ghcr.io/your-org/microservice-app-${component}=${REGISTRY}/${NAMESPACE}/microservice-app-${component}:${TAG}"
+    "ghcr.io/lahgolz/microservice-app-${component}=${REGISTRY}/${NAMESPACE}/microservice-app-${component}:${TAG}"
 done
 
 echo "==> Images fixées sur ${REGISTRY}/${NAMESPACE}/microservice-app-{catalogue,orders,frontend,db-tools}:${TAG}"

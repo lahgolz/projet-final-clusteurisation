@@ -64,7 +64,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: orders
-          image: ghcr.io/your-org/microservice-app-orders:replace-me
+          image: ghcr.io/lahgolz/microservice-app-orders:replace-me
           ports:
             - name: http
               containerPort: 4002

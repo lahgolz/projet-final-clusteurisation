@@ -1,16 +1,13 @@
 # Déploiement Kubernetes
 
-Les manifests utilisent Kustomize : `base` contient les ressources communes, et `overlays/dev`
-ainsi que `overlays/prod` portent les différences d'environnement.
+Les manifests utilisent Kustomize : `base` contient les ressources communes, `overlays/dev` et
+`overlays/prod` portent les différences d'environnement.
 
-Ce document couvre le déploiement manuel. Pour le déploiement automatisé (CI/CD GitHub Actions,
-build/scan/push des images, secrets à configurer, rollback), voir
-[`docs/ci-cd.md`](../docs/ci-cd.md). Pour les logs, métriques, dashboards et l'alerting
-(Prometheus/Grafana installés séparément via Helm, manifests dans `k8s/observability/`), voir
-[`docs/observability.md`](../docs/observability.md). Pour la sauvegarde/restauration PostgreSQL
-(`k8s/base/backup.yaml`), le test de charge k6 (`k8s/load-test/`) et les runbooks d'incident, voir
-[`docs/backup-restore.md`](../docs/backup-restore.md), [`docs/performance.md`](../docs/performance.md)
-et [`docs/runbooks.md`](../docs/runbooks.md).
+Ce document couvre le déploiement manuel. Pour le reste, voir [`docs/ci-cd.md`](../docs/ci-cd.md)
+(pipeline, build/scan/push, rollback), [`docs/observability.md`](../docs/observability.md)
+(Prometheus/Grafana), [`docs/backup-restore.md`](../docs/backup-restore.md) (sauvegarde
+PostgreSQL), [`docs/performance.md`](../docs/performance.md) (test de charge k6) et
+[`docs/runbooks.md`](../docs/runbooks.md) (procédures d'incident).
 
 ## Prérequis
 
@@ -27,8 +24,8 @@ minikube addons enable ingress          # contrôleur ingress-nginx
 minikube addons enable metrics-server   # requis par le HPA
 ```
 
-Sans `metrics-server`, le HPA reste en état `<unknown>` (`kubectl -n microservice-app get hpa`) et ne
-scale jamais. Vérifiez avec :
+Sans `metrics-server`, le HPA reste bloqué en `<unknown>` (`kubectl -n microservice-app get hpa`).
+Pour vérifier qu'il tourne bien :
 
 ```bash
 kubectl -n kube-system get pods -l k8s-app=metrics-server
@@ -37,17 +34,8 @@ kubectl -n microservice-app top pods
 
 ## Images
 
-L'overlay `dev` référence les images locales suivantes :
-
-```bash
-docker build -f services/catalogue/Dockerfile -t microservice-app/catalogue:dev .
-docker build -f services/orders/Dockerfile -t microservice-app/orders:dev .
-docker build -f apps/frontend/Dockerfile -t microservice-app/frontend:dev .
-docker build -f packages/db/Dockerfile -t microservice-app/db-tools:dev .
-```
-
-Avec kind, chargez ensuite ces quatre images dans le cluster (`kind load docker-image ...`).
-Avec minikube, construisez directement dans le daemon Docker du cluster pour éviter un registry :
+L'overlay `dev` référence des images locales. Avec minikube, le plus simple est de construire
+directement dans le daemon Docker du cluster (pas besoin de registry) :
 
 ```bash
 eval $(minikube docker-env)
@@ -57,9 +45,11 @@ docker build -f apps/frontend/Dockerfile -t microservice-app/frontend:dev .
 docker build -f packages/db/Dockerfile -t microservice-app/db-tools:dev .
 ```
 
-Le tag `dev` n'étant pas `latest`, Kubernetes applique par défaut `imagePullPolicy: IfNotPresent` :
-tant que l'image existe déjà dans le daemon Docker vu par le cluster (`minikube docker-env`),
-aucune tentative de pull vers un registry distant n'a lieu.
+Avec kind, il faut charger ces quatre images dans le cluster après le build
+(`kind load docker-image ...`), pas de `docker-env` équivalent.
+
+Le tag `dev` n'étant pas `latest`, Kubernetes applique `imagePullPolicy: IfNotPresent` par défaut :
+tant que l'image existe déjà dans le daemon vu par le cluster, pas de tentative de pull distant.
 
 Pour la production, remplacez `ghcr.io/your-org` et le tag `replace-me` via la CI/CD ou la
 section `images` de `overlays/prod/kustomization.yaml`.
@@ -73,16 +63,15 @@ cp k8s/overlays/dev/secret.env.example k8s/overlays/dev/secret.env
 cp k8s/overlays/prod/secret.env.example k8s/overlays/prod/secret.env
 ```
 
-`DATABASE_URL` doit utiliser exactement le même mot de passe que `POSTGRES_PASSWORD`.
-Le `secretGenerator` Kustomize crée le Secret Kubernetes `microservice-app-db` lors du déploiement.
+`DATABASE_URL` doit utiliser exactement le même mot de passe que `POSTGRES_PASSWORD`. Le
+`secretGenerator` Kustomize crée ensuite le Secret `microservice-app-db` au déploiement.
 
 ## Stockage PostgreSQL
 
-Le `StatefulSet` `postgres` ne fixe pas de `storageClassName` sur son `volumeClaimTemplate` : le
-PVC utilise donc la `StorageClass` marquée par défaut sur le cluster (`standard` sur minikube et
-kind). C'est ce qui rend la classe de stockage configurable par environnement, pour en imposer
-une précise (ex. `premium-rwo` sur GKE, `gp3` sur EKS), ajoutez un patch Kustomize dans l'overlay
-concerné :
+Le `StatefulSet` `postgres` ne fixe pas de `storageClassName` : le PVC utilise donc la
+`StorageClass` par défaut du cluster (`standard` sur minikube et kind). Pour en imposer une
+précise en production (`premium-rwo` sur GKE, `gp3` sur EKS...), ajoutez un patch Kustomize dans
+l'overlay concerné :
 
 ```yaml
 # overlays/prod/storage-class.yaml
@@ -101,33 +90,27 @@ spec:
 
 puis référencez-le dans `patches:` de `overlays/prod/kustomization.yaml`.
 
-**Politique de rétention.** La plupart des `StorageClass` provisionnées dynamiquement (dont
-`standard` sur minikube/kind) ont `reclaimPolicy: Delete` : supprimer le PVC supprime aussi le
-volume sous-jacent et les données. En production, préférez une `StorageClass` avec
-`reclaimPolicy: Retain` (ou activez des sauvegardes régulières) pour survivre à
-une suppression accidentelle du PVC.
+Deux points à garder en tête pour la production :
 
-**Limite `hostPath` / provisioner local.** Sur minikube (`k8s.io/minikube-hostpath`) comme sur kind
-(`rancher.io/local-path`), le volume est un répertoire local au nœud unique : il ne survit pas à la
-suppression du nœud/VM, ne se réplique pas, et un cluster multi-nœuds ne garantit pas que le pod
-`postgres-0` sera reprogrammé sur le nœud qui détient les données. C'est acceptable pour une démo
-mono-nœud, mais inadapté à la production, voir [`docs/resilience.md`](../docs/resilience.md)
-pour les alternatives (CloudNativePG, Patroni, service managé).
+- **Rétention** : la plupart des `StorageClass` provisionnées dynamiquement (dont `standard` sur
+  minikube/kind) ont `reclaimPolicy: Delete` - supprimer le PVC supprime aussi les données.
+  Préférez `Retain` (ou des sauvegardes régulières, voir [`docs/backup-restore.md`](../docs/backup-restore.md)).
+- **Stockage local** : sur minikube/kind, le volume est un simple répertoire sur le nœud unique.
+  Il ne survit pas à la perte du nœud et ne se réplique pas. Suffisant pour une démo, pas pour la
+  prod (alternatives dans [`docs/resilience.md`](../docs/resilience.md) : CloudNativePG, Patroni,
+  service managé).
 
 ### Vérifier la persistance
 
 ```bash
-# Insérer une donnée de test
 kubectl -n microservice-app exec -it postgres-0 -- \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
   "CREATE TABLE IF NOT EXISTS persistence_check(id serial primary key, note text);
    INSERT INTO persistence_check(note) VALUES ('before-restart');"
 
-# Redémarrer le pod (le StatefulSet le recrée avec le même PVC)
 kubectl -n microservice-app delete pod postgres-0
 kubectl -n microservice-app wait --for=condition=ready pod/postgres-0 --timeout=120s
 
-# Vérifier que la ligne existe toujours
 kubectl -n microservice-app exec -it postgres-0 -- \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT * FROM persistence_check;"
 ```
@@ -142,10 +125,10 @@ kubectl -n microservice-app wait --for=condition=complete job/db-seed --timeout=
 ```
 
 Pour un Ingress local, ajoutez `127.0.0.1 microservice-app.local` au fichier hosts, puis ouvrez
-`http://microservice-app.local`. En production, remplacez `microservice-app.example.com` par votre domaine et
-ajoutez TLS/cert-manager selon votre cluster.
+`http://microservice-app.local`. En production, remplacez le domaine et ajoutez TLS/cert-manager
+selon votre cluster.
 
-## Vérifications demandées
+## Quelques vérifications utiles
 
 ```bash
 # Logs JSON applicatifs
@@ -154,10 +137,11 @@ kubectl -n microservice-app logs deploy/catalogue
 # HPA (metrics-server requis)
 kubectl -n microservice-app get hpa -w
 
-# Résilience : le Deployment recrée le pod ; vérifier l'accès pendant/après l'opération
+# Résilience : le Deployment recrée le pod supprimé
 kubectl -n microservice-app delete pod -l app.kubernetes.io/name=catalogue
 kubectl -n microservice-app get pods -w
 ```
 
-Les pods applicatifs utilisent des comptes de service sans jeton monté, s'exécutent sans privilège,
-avec profil seccomp `RuntimeDefault`, système de fichiers en lecture seule et NetworkPolicies.
+Les pods applicatifs tournent avec des ServiceAccounts sans jeton monté, sans privilège, profil
+seccomp `RuntimeDefault`, système de fichiers en lecture seule, et des NetworkPolicies. Détails
+dans [`docs/security.md`](../docs/security.md).

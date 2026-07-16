@@ -9,17 +9,16 @@ commande.
 pnpm --filter @microservice-app/frontend dev
 ```
 
-Ouvre `http://localhost:5173`. En développement, Vite proxy `/api/catalogue` vers
-`http://localhost:4001` et `/api/orders` vers `http://localhost:4002` (voir `vite.config.ts`) :
-démarrer les deux services backend au préalable (`pnpm dev` à la racine les lance tous les
-trois).
+Ouvre `http://localhost:5173`. En dev, Vite proxy `/api/catalogue` vers `http://localhost:4001`
+et `/api/orders` vers `http://localhost:4002` (voir `vite.config.ts`) : pensez à démarrer les deux
+API avant (ou lancez `pnpm dev` à la racine, qui démarre les trois d'un coup).
 
 ## Configuration
 
 Le frontend appelle les API via des **chemins relatifs** (`/api/catalogue/...`,
-`/api/orders/...`), pensés pour passer par l'Ingress une fois déployé, aucune URL interne au
-cluster n'est exposée au navigateur. `VITE_API_BASE_URL` (voir `.env.example`) permet de préfixer
-ces appels si les API sont un jour exposées sur une origine différente ; laissé vide par défaut.
+`/api/orders/...`) : ça passe par l'Ingress une fois déployé, sans jamais exposer d'URL interne au
+cluster au navigateur. `VITE_API_BASE_URL` (voir `.env.example`) permet de préfixer ces appels si
+les API sont un jour exposées sur une origine différente ; vide par défaut.
 
 ## Comportements gérés
 
@@ -28,7 +27,7 @@ ces appels si les API sont un jour exposées sur une origine différente ; laiss
 - Erreur réseau, timeout (8s) ou erreur serveur à la récupération du catalogue (`role="alert"`).
 - Confirmation ou erreur après la création d'une commande, affichée au niveau du produit
   concerné.
-- Désactivation du bouton "Commander" et du champ quantité quand le stock est à 0.
+- Bouton "Commander" et champ quantité désactivés quand le stock est à 0.
 
 ## Build et serveur statique
 
@@ -37,7 +36,8 @@ pnpm --filter @microservice-app/frontend build     # génère apps/frontend/dist
 pnpm --filter @microservice-app/frontend preview   # sert le build localement
 ```
 
-`nginx.conf` contient la configuration destinée à l'image de production (SPA + route `/healthz` retournant `200`)
+`nginx.conf` contient la configuration destinée à l'image de production (SPA + route `/healthz`
+qui répond `200`).
 
 ## Tests
 
@@ -47,7 +47,7 @@ pnpm --filter @microservice-app/frontend test
 
 Couvre : rendu de la liste de produits, état vide, erreur de chargement du catalogue, création
 de commande réussie, erreur lors de la création d'une commande, et le client HTTP
-(`src/api/client.ts`) : réponse 2xx, erreur serveur, erreur réseau, timeout.
+(`src/api/client.ts`) sur ses cas 2xx, erreur serveur, erreur réseau et timeout.
 
 ## Lint et typecheck
 

@@ -39,7 +39,7 @@ END=$((START + DURATION))
 while [ "$(date +%s)" -lt "$END" ]; do
   ELAPSED=$(( $(date +%s) - START ))
   REMAINING=$((DURATION - ELAPSED))
-  printf "\r    %3ds écoulées, %3ds restantes — %d workers actifs" \
+  printf "\r    %3ds écoulées, %3ds restantes - %d workers actifs" \
     "$ELAPSED" "$REMAINING" "$CONCURRENCY"
   sleep 2
 done

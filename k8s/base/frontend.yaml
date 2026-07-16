@@ -63,7 +63,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: frontend
-          image: ghcr.io/your-org/microservice-app-frontend:replace-me
+          image: ghcr.io/lahgolz/microservice-app-frontend:replace-me
           ports:
             - name: http
               containerPort: 8080

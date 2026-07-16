@@ -1,7 +1,6 @@
 # service orders
 
-API Node.js (TypeScript + Fastify) responsable de la création et de la consultation des
-commandes.
+API Node.js (TypeScript + Fastify) qui gère la création et la consultation des commandes.
 
 ## Démarrage local
 
@@ -10,7 +9,7 @@ cp .env.example .env   # adapter si besoin
 pnpm --filter @microservice-app/orders dev
 ```
 
-Prérequis : une base PostgreSQL migrée (voir [`packages/db`](../../packages/db)) et le service
+Il faut une base PostgreSQL migrée (voir [`packages/db`](../../packages/db)) et le service
 `catalogue` démarré et accessible via `CATALOGUE_BASE_URL`.
 
 ## Variables d'environnement
@@ -26,12 +25,13 @@ Prérequis : une base PostgreSQL migrée (voir [`packages/db`](../../packages/db
 
 ## Dépendance au service catalogue
 
-`orders` ne lit jamais directement la table `products` : à la création d'une commande, il
-appelle `GET /api/catalogue/products/:id` pour chaque produit référencé (dédupliqué), avec un
-timeout borné (`CATALOGUE_TIMEOUT_MS`) et **sans retry** (une seule tentative). Ce choix privilégie la démonstration
-explicite de la communication inter-services par rapport à un accès direct à une table partagée.
+`orders` ne lit jamais directement la table `products` : à la création d'une commande, il appelle
+`GET /api/catalogue/products/:id` pour chaque produit référencé (dédupliqué), avec un timeout
+borné et sans retry (une seule tentative). C'est un choix assumé pour bien montrer la
+communication inter-services, plutôt que de laisser `orders` accéder directement à une table qui
+ne lui appartient pas.
 
-Comportement selon la réponse de catalogue :
+Selon la réponse de catalogue :
 
 | Résultat catalogue              | Effet sur la commande                                 |
 | ------------------------------- | ----------------------------------------------------- |
@@ -40,7 +40,8 @@ Comportement selon la réponse de catalogue :
 | timeout / erreur réseau / `5xx` | `POST /api/orders` répond `502 CATALOGUE_UNAVAILABLE` |
 
 `GET /health/ready` ne vérifie que PostgreSQL, volontairement pas la disponibilité de catalogue
-(voir `docs/architecture.md`), pour ne pas transformer une panne de catalogue en panne d'orders.
+(voir [`docs/architecture.md`](../../docs/architecture.md)) : sinon une panne de catalogue
+ferait tomber orders en cascade.
 
 ## Routes
 
@@ -92,9 +93,9 @@ Retourne la commande et ses lignes, ou `404 ORDER_NOT_FOUND`.
 pnpm --filter @microservice-app/orders test
 ```
 
-Les tests unitaires (schémas, client catalogue simulé via `fetch` stubbé) s'exécutent toujours.
-Les tests d'intégration (transaction, rollback, dépendances réelles à PostgreSQL) nécessitent
-`TEST_DATABASE_URL` et sont sinon automatiquement ignorés :
+Les tests unitaires (schémas, client catalogue simulé via `fetch` stubbé) tournent toujours. Les
+tests d'intégration (transaction, rollback, dépendances réelles à PostgreSQL) ont besoin de
+`TEST_DATABASE_URL` et sont sinon ignorés automatiquement :
 
 ```bash
 pnpm dev:db:up
@@ -105,4 +106,4 @@ TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/
 ## Arrêt
 
 Le service intercepte `SIGTERM`/`SIGINT`, ferme le serveur HTTP puis le pool PostgreSQL avant de
-sortir, avec une temporisation de sécurité de 10s.
+sortir, avec un délai de sécurité de 10s.

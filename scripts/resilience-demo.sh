@@ -45,11 +45,11 @@ kubectl -n "$NS" get pdb
 step "Vérification que l'application répond :"
 HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/api/catalogue/products")
 [ "$HTTP_CODE" = "200" ] && ok "GET /api/catalogue/products -> HTTP $HTTP_CODE" \
-  || echo "  ✗ HTTP $HTTP_CODE — vérifier que le cluster est démarré et que microservice-app.local est dans /etc/hosts"
+  || echo "  ✗ HTTP $HTTP_CODE : vérifier que le cluster est démarré et que microservice-app.local est dans /etc/hosts"
 
 pause
 
-header "1. Self-healing — kill d'un pod catalogue"
+header "1. Self-healing : kill d'un pod catalogue"
 
 step "Pods catalogue avant suppression :"
 kubectl -n "$NS" get pods -l app.kubernetes.io/name=catalogue
@@ -73,7 +73,7 @@ ok "GET /api/catalogue/products -> HTTP $HTTP_CODE"
 
 pause
 
-header "2. HPA — scale automatique sous charge CPU"
+header "2. HPA : scale automatique sous charge CPU"
 
 step "État initial du HPA catalogue :"
 kubectl -n "$NS" get hpa catalogue
@@ -82,7 +82,7 @@ step "Lancement de la charge en arrière-plan (${SCRIPT_DIR}/load-test.sh)..."
 bash "${SCRIPT_DIR}/load-test.sh" "$BASE_URL" 90 20 &
 LOAD_PID=$!
 
-step "Observation du HPA (90 secondes — le scale-up peut prendre 1-2 min) :"
+step "Observation du HPA (90 secondes, le scale-up peut prendre 1-2 min) :"
 echo "  -> Cible : 70% CPU en moyenne sur les pods catalogue"
 echo "  -> Le HPA va ajouter des replicas si le seuil est dépassé"
 echo ""
@@ -108,7 +108,7 @@ echo "  -> Le HPA redescendra automatiquement après ~5 minutes de stabilisation
 
 pause
 
-header "3. PodDisruptionBudget — protection lors d'un drain de nœud"
+header "3. PodDisruptionBudget : protection lors d'un drain de nœud"
 
 step "PDB configurés :"
 kubectl -n "$NS" get pdb
@@ -134,18 +134,18 @@ if [ "$CATALOGUE_REPLICAS" -ge 2 ]; then
     echo ""
     ok "Avec PDB minAvailable:1 et 2 replicas, un pod reste disponible pendant le drain"
   else
-    echo "  Cluster mono-nœud (Kind par défaut) — simulation de drain impossible sans second nœud."
+    echo "  Cluster mono-nœud (Kind par défaut) : simulation de drain impossible sans second nœud."
     echo "  En production multi-nœuds, kubectl drain respecterait le PDB et maintiendrait"
     echo "  au moins 1 pod catalogue disponible pendant la maintenance."
   fi
 else
-  echo "  catalogue tourne avec $CATALOGUE_REPLICAS replica — scalez à 2 pour la démo PDB :"
+  echo "  catalogue tourne avec $CATALOGUE_REPLICAS replica, scalez à 2 pour la démo PDB :"
   echo "    kubectl -n $NS scale deploy/catalogue --replicas=2"
 fi
 
 pause
 
-header "4. RollingUpdate — mise à jour sans interruption"
+header "4. RollingUpdate : mise à jour sans interruption"
 
 step "Déclenchement d'un rolling restart de catalogue :"
 kubectl -n "$NS" rollout restart deployment/catalogue
@@ -176,7 +176,7 @@ kubectl -n "$NS" rollout status deployment/catalogue --timeout=120s
 ok "Rollback effectué. Révisions disponibles :"
 kubectl -n "$NS" rollout history deployment/catalogue
 
-header "Démo terminée — commandes utiles"
+header "Démo terminée : commandes utiles"
 echo ""
 echo "  kubectl -n $NS get all"
 echo "  kubectl -n $NS get hpa -w"

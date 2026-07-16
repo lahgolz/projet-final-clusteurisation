@@ -64,7 +64,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: catalogue
-          image: ghcr.io/your-org/microservice-app-catalogue:replace-me
+          image: ghcr.io/lahgolz/microservice-app-catalogue:replace-me
           ports:
             - name: http
               containerPort: 4001

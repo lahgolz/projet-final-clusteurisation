@@ -1,6 +1,6 @@
 # service catalogue
 
-API Node.js (TypeScript + Fastify) responsable de la lecture du catalogue de produits.
+API Node.js (TypeScript + Fastify) qui gère la lecture du catalogue de produits.
 
 ## Démarrage local
 
@@ -9,8 +9,8 @@ cp .env.example .env   # adapter si besoin
 pnpm --filter @microservice-app/catalogue dev
 ```
 
-Prérequis : une base PostgreSQL migrée et peuplée (voir [`packages/db`](../../packages/db) et le
-[README racine](../../README.md#base-de-données-locale-développement)).
+Il faut une base PostgreSQL migrée et peuplée au préalable (voir [`packages/db`](../../packages/db)
+et le [README racine](../../README.md#base-de-données-locale)).
 
 ## Variables d'environnement
 
@@ -55,7 +55,7 @@ Paramètres de requête optionnels : `limit` (défaut `50`, max `100`), `offset`
 
 ### `GET /api/catalogue/products/:id`
 
-Retourne un objet produit unique, ou `404` avec `{"error":{"code":"PRODUCT_NOT_FOUND", ...}}`.
+Retourne un produit, ou `404` avec `{"error":{"code":"PRODUCT_NOT_FOUND", ...}}`.
 
 ## Enveloppe d'erreur
 
@@ -69,7 +69,7 @@ Retourne un objet produit unique, ou `404` avec `{"error":{"code":"PRODUCT_NOT_F
 pnpm --filter @microservice-app/catalogue test
 ```
 
-Les tests d'intégration qui nécessitent PostgreSQL sont automatiquement ignorés si
+Les tests d'intégration qui ont besoin de PostgreSQL sont ignorés automatiquement si
 `TEST_DATABASE_URL` n'est pas défini :
 
 ```bash
@@ -81,4 +81,4 @@ TEST_DATABASE_URL=postgresql://microservice-app:microservice-app@localhost:5433/
 ## Arrêt
 
 Le service intercepte `SIGTERM`/`SIGINT`, ferme le serveur HTTP (`forceCloseConnections: 'idle'`)
-puis le pool PostgreSQL avant de sortir, avec une temporisation de sécurité de 10s.
+puis le pool PostgreSQL avant de sortir, avec un délai de sécurité de 10s.
